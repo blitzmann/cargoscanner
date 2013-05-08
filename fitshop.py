@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-    An Eve Online Cargo Scanner
+    An Eve Online Shopping List for Fits
 """
 import json
+import simplejson
 import urllib2
 import time
 import datetime
 import xml.etree.ElementTree as ET
 import humanize
 import locale
+import redis
 import os
+import jsonpickle
 
 from flask import Flask, request, render_template, url_for, redirect, session, \
     send_from_directory
@@ -26,12 +29,20 @@ DEBUG = True
 TYPES = json.loads(open('data/types.json').read())
 USER_AGENT = 'Evepraisal/1.0 +http://evepraisal.com/'
 SQLALCHEMY_DATABASE_URI = 'sqlite:///data/scans.db'
-CACHE_TYPE = 'memcached'
+CACHE_TYPE = 'redis'
 CACHE_KEY_PREFIX = 'evepraisal'
-CACHE_MEMCACHED_SERVERS = ['127.0.0.1:11211']
-CACHE_DEFAULT_TIMEOUT = 10 * 60
+#CACHE_MEMCACHED_SERVERS = ['127.0.0.1:11211']
+CACHE_REDIS_HOST = '127.0.0.1'
+CACHE_REDIS_PORT = 6379
+#CACHE_DEFAULT_TIMEOUT = 10 * 60
+#CACHE_REDIS_DB = ;
 TEMPLATE = 'default'
 SECRET_KEY = 'SET ME TO SOMETHING SECRET IN THE APP CONFIG!'
+#REDIS_EMDR_DB = 0
+#REDIS_SHOPPING_DB = 3
+
+emdr = redis.StrictRedis(host='localhost', port=6379, db=0)
+#shopping = redis.StrictRedis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
 
 cache = Cache()
 app = Flask(__name__)
@@ -103,7 +114,6 @@ class EveType():
             'totals': self.pricing_info.get('totals'),
             'sell': self.pricing_info.get('sell'),
             'buy': self.pricing_info.get('buy'),
-            'all': self.pricing_info.get('all'),
         }
 
     @classmethod
@@ -118,7 +128,6 @@ class EveType():
                 'totals': d.get('totals'),
                 'sell': d.get('sell'),
                 'buy': d.get('buy'),
-                'all': d.get('all'),
             }
         )
 
@@ -177,6 +186,10 @@ def get_locale():
     return request.accept_languages.best_match(['en'])
 
 
+def emdr_type_key(typeId):
+    return "emdr-1-10000002-%s" % typeId
+
+
 def memcache_type_key(typeId):
     return "prices:%s" % typeId
 
@@ -185,10 +198,12 @@ def get_cached_values(eve_types):
     "Get Cached values given the eve_types"
     found = {}
     for eve_type in eve_types:
-        key = memcache_type_key(eve_type.type_id)
-        obj = cache.get(key)
+        key = emdr_type_key(eve_type.type_id)
+        obj = simplejson.loads(emdr.get(key))
         if obj:
-            found[eve_type.type_id] = obj
+            #app.logger.debug("Found cache for %d: %s", eve_type.type_id, obj) 
+            found[eve_type.type_id] = obj['orders']
+
     return found
 
 
@@ -205,6 +220,7 @@ def get_market_values(eve_types):
              'sell': {'avg': 10552957.04, 'min': 10552957.04, 'max': 10552957.04, 'price': 10552957.04}
         }
     """
+    app.logger.debug("MARKET")
     if len(eve_types) == 0:
         return {}
 
@@ -336,12 +352,15 @@ def parse_paste_items(raw_paste):
     results = {}
     bad_lines = []
 
+    # add type to results list
     def _add_type(name, count, fitted=False):
         if name == '':
             return False
+        # get details from types file (loaded via json)
         details = app.config['TYPES'].get(name)
         if not details:
-            return False
+            #app.logger.debug(name+" doesn't exist")
+            return False # doesn't exist
         type_id = details['typeID']
         if type_id not in results:
             results[type_id] = EveType(type_id, props=details.copy())
@@ -376,7 +395,7 @@ def parse_paste_items(raw_paste):
         # aiming for the format "Hornet x5" (EFT)
         try:
             if 'x' in fmt_line:
-                item, count = fmt_line.rsplit('x', 1)
+                item, count = fmt_line.rsplit('x', 1)       # remove , and . from count (decimal seperators)
                 if _add_type(item.strip(), int(count.strip().replace(',', '').replace('.', ''))):
                     continue
         except ValueError:
@@ -425,8 +444,9 @@ def parse_paste_items(raw_paste):
         except ValueError:
             pass
 
+        # could not find appropriate format
         bad_lines.append(line)
-
+        
     return results.values(), bad_lines
 
 
@@ -435,20 +455,22 @@ def is_from_igb():
 
 
 def get_invalid_values(eve_types):
+    "For each item that is not on the market, set pricing info to 0"
     invalid_items = {}
     for eve_type in eve_types:
         if eve_type.props.get('market') == False:
-            zeroed_price = {'avg': 0, 'min': 0, 'max': 0, 'price': 0}
+            zeroed_price = {0, 0}
             price_info = {
                 'buy': zeroed_price.copy(),
                 'sell': zeroed_price.copy(),
-                'all': zeroed_price.copy(),
             }
             invalid_items[eve_type.type_id] = price_info
+    #app.logger.debug("Invalid market items: "+json.dumps(invalid_items))
     return invalid_items
 
 
 def get_componentized_values(eve_types):
+    "For cap ships, add up the value of what makes them"
     componentized_items = {}
     for eve_type in eve_types:
         if 'components' in eve_type.props:
@@ -478,16 +500,14 @@ def get_componentized_values(eve_types):
 
 def populate_market_values(eve_types, methods=None):
     unpopulated_types = list(eve_types)
+    #app.logger.debug("POPULATING MARKET DATA")
     if methods is None:
-        methods = [get_invalid_values, get_cached_values,
-            get_componentized_values, get_market_values, get_market_values_2]
+        methods = [get_invalid_values, get_cached_values]
     for pricing_method in methods:
         if len(unpopulated_types) == 0:
             break
         # returns a dict with {type_id: pricing_info}
         prices = pricing_method(unpopulated_types)
-        app.logger.debug("Found %s/%s items using method: %s", len(prices),
-            len(unpopulated_types), pricing_method)
         new_unpopulated_types = []
         for eve_type in unpopulated_types:
             if eve_type.type_id in prices:
@@ -495,13 +515,15 @@ def populate_market_values(eve_types, methods=None):
                 pdata['totals'] = {
                     'volume': eve_type.props.get('volume', 0) * eve_type.count
                 }
-                for total_key in ['sell', 'buy', 'all']:
-                    _total = pdata[total_key]['price'] * eve_type.count
+                for total_key in ['sell', 'buy']:
+                    _total = float(pdata[total_key][0]) * eve_type.count
                     pdata['totals'][total_key] = _total
+                #app.logger.debug("%d: pdata: %s", eve_type.type_id, pdata)
                 eve_type.pricing_info = pdata
             else:
                 new_unpopulated_types.append(eve_type)
         unpopulated_types = new_unpopulated_types
+    #app.logger.debug("eve_types: %s", jsonpickle.encode(eve_types))
     return eve_types
 
 
@@ -512,15 +534,17 @@ def estimate_cost():
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
+    
+    # Parse input, send to variables
     eve_types, bad_lines = parse_paste_items(raw_paste)
 
     # Populate types with pricing data
     populate_market_values(eve_types)
 
     # calculate the totals
-    totals = {'sell': 0, 'buy': 0, 'all': 0, 'volume': 0}
+    totals = {'sell': 0, 'buy': 0}
     for t in eve_types:
-        for total_key in ['sell', 'buy', 'all', 'volume']:
+        for total_key in ['sell', 'buy']:
             totals[total_key] += t.pricing_info['totals'][total_key]
 
     sorted_eve_types = sorted(eve_types, key=lambda k: -k.representative_value())
@@ -603,4 +627,4 @@ def static_from_root():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='192.168.1.10')
