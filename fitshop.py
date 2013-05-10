@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 """
     An Eve Online Shopping List for Fits
+    
+    every item has a type class, giving info to the item (price, volume, etc)
+    every fit has a fit class, giving info of the fit (name, items it has and count (or duplicate), quantity)
+    
+    every time fit quantiry is updated, it modifies the EveType for that item to show new quantity (perhaps allow custom qty for individuel items as well)
 """
+
 import json
 import simplejson
 import urllib2
@@ -72,7 +78,8 @@ babel = Babel(app)
 metadata.create_all(bind=engine)
 cache.init_app(app)
 
-
+# one instance per item
+# includes information on items price, volume, count, 
 class EveType():
     def __init__(self, type_id, count=0, props=None, pricing_info=None):
         self.type_id = type_id
@@ -131,6 +138,63 @@ class EveType():
             }
         )
 
+# one instance per Fit
+# includes fit name, quantity?
+class EveFit():
+    def __init__(self, type_id, name=None, qty=0):
+        self.id = 0
+        self.type_id = type_id # type if of fit (which ship)
+        self.qty = qty # qty of ships we want
+        self.name = name # name of fit
+        
+        self.items = [] # dict of modules in the format {typeid: qty}
+
+    def representative_value(self):
+        if not self.pricing_info:
+            return 0
+        sell_price = self.pricing_info.get('totals', {}).get('sell', 0)
+        buy_price = self.pricing_info.get('totals', {}).get('buy', 0)
+        return max(sell_price, buy_price)
+
+    def is_market_item(self):
+        return self.props.get('market', False) == True
+
+    def add_item(self, itemID):
+        self.items.append(itemID)
+        
+    def incr_count(self, qty, fitted=False):
+        self.qty += qty
+        if fitted:
+            self.fitted_count += count
+
+    def to_dict(self):
+        return {
+            'typeID': self.type_id,
+            'count': self.count,
+            'fitted_count': self.fitted_count,
+            'market': self.market,
+            'volume': self.volume,
+            'typeName': self.type_name,
+            'groupID': self.group_id,
+            'totals': self.pricing_info.get('totals'),
+            'sell': self.pricing_info.get('sell'),
+            'buy': self.pricing_info.get('buy'),
+        }
+
+    @classmethod
+    def from_dict(self, cls, d):
+        return cls(d['typeID'], d['count'],
+            {
+                'typeName': d.get('typeName'),
+                'groupID': d.get('groupID'),
+                'volume': d.get('volume')
+            },
+            {
+                'totals': d.get('totals'),
+                'sell': d.get('sell'),
+                'buy': d.get('buy'),
+            }
+        )
 
 @app.template_filter('format_isk')
 def format_isk(value):
@@ -349,11 +413,15 @@ def parse_paste_items(raw_paste):
     """
     lines = [line.strip() for line in raw_paste.splitlines() if line.strip()]
 
-    results = {}
+    fits = {} # {'typeID-name': EveFit instance}
+    results = {} # list of items
     bad_lines = []
-
+    fitID = None
+    
     # add type to results list
     def _add_type(name, count, fitted=False):
+        app.logger.debug("Adding module to FitID: %s", fitID)
+
         if name == '':
             return False
         # get details from types file (loaded via json)
@@ -365,25 +433,46 @@ def parse_paste_items(raw_paste):
         if type_id not in results:
             results[type_id] = EveType(type_id, props=details.copy())
         results[type_id].incr_count(count, fitted=fitted)
+        fits[fitID].add_item(type_id)
         return True
+        
+    def _add_fit(typeName, fitName, qty=1):
+        app.logger.debug("Adding Fit")
+
+        if typeName == '':
+            return False
+        # get details from types file (loaded via json)
+        details = app.config['TYPES'].get(typeName)
+        if not details:
+            return False # doesn't exist
+        type_id = details['typeID']
+        fitID = str(type_id) + fitName
+
+        if type_id not in fits:
+            fits[fitID] = EveFit(type_id, fitName)
+        #fits[fitID].incr_count(count)
+        return True, fitID
 
     for line in lines:
         fmt_line = line.lower().replace(' (original)', '')
+        app.logger.debug("Line: %s, fitID: %s",fmt_line, fitID)
 
+        # aiming for the format "[panther, my pimp panther]" (EFT)
+        if '[' in fmt_line and ']' in fmt_line and fmt_line.count(",") > 0:
+            item, name = fmt_line.lstrip('[').rstrip(']').split(',', 1)
+            success, fitID = _add_fit(item.strip(), name) 
+            
+            if success and _add_type(item.strip(), 1):
+                continue
+         
+        """if fitID == None: #if we do not have a fit associated with item, skip it
+            app.logger.debug("no fitID found")
+            continue
+"""
         # aiming for the format "Cargo Scanner II" (Basic Listing)
         if _add_type(fmt_line, 1):
             continue
-
-        # aiming for the format "2 Cargo Scanner II" and "2x Cargo Scanner II"
-        # (Cargo Scan)
-        try:
-            count, name = fmt_line.split(' ', 1)
-            count = int(count.replace('x', '').strip().replace(',', '').replace('.', ''))
-            if _add_type(name.strip(), count):
-                continue
-        except ValueError:
-            pass
-
+            
         # aiming for the format (EFT)
         # "800mm Repeating Artillery II, Republic Fleet EMP L"
         if ',' in fmt_line:
@@ -401,53 +490,11 @@ def parse_paste_items(raw_paste):
         except ValueError:
             pass
 
-        # aiming for the format "[panther, my pimp panther]" (EFT)
-        if '[' in fmt_line and ']' in fmt_line and fmt_line.count(",") > 0:
-            item, _ = fmt_line.strip('[').split(',', 1)
-            if _add_type(item.strip(), 1):
-                continue
-
-        # aiming for format "PERSON'S NAME\tShipType\tdistance" (d-scan)
-        if fmt_line.count("\t") > 1:
-            _, item, _ = fmt_line.split("\t", 2)
-            if _add_type(item.strip(), 1):
-                continue
-
-        # aiming for format "Item Name\tCount\tCategory\tFitted..." (Contracts)
-        try:
-            if fmt_line.count("\t") == 3:
-                item, count, _, fitted = fmt_line.split("\t", 3)
-                if fitted in ['', 'fitted']:
-                    is_fitted = fitted == 'fitted'
-                    if _add_type(item.strip(),
-                                int(count.strip().replace(',', '').replace('.', '')),
-                                fitted=is_fitted):
-                        continue
-        except ValueError:
-            pass
-
-        # aiming for format "Item Name\tCount..." (Assets, Inventory)
-        try:
-            if fmt_line.count("\t") > 1:
-                item, count, _ = fmt_line.split("\t", 2)
-                if _add_type(item.strip(), int(count.strip().replace(',', '').replace('.', ''))):
-                    continue
-        except ValueError:
-            pass
-
-        # aiming for format "Item Name\t..." (???)
-        try:
-            if fmt_line.count("\t") > 0:
-                item, _ = fmt_line.split("\t", 1)
-                if _add_type(item.strip(), 1):
-                    continue
-        except ValueError:
-            pass
-
         # could not find appropriate format
         bad_lines.append(line)
-        
-    return results.values(), bad_lines
+    
+    app.logger.debug("fit: %s", jsonpickle.encode(fits))
+    return results, bad_lines
 
 
 def is_from_igb():
@@ -539,23 +586,29 @@ def estimate_cost():
     eve_types, bad_lines = parse_paste_items(raw_paste)
 
     # Populate types with pricing data
-    populate_market_values(eve_types)
+    populate_market_values(eve_types.values())
 
     # calculate the totals
-    totals = {'sell': 0, 'buy': 0}
-    for t in eve_types:
-        for total_key in ['sell', 'buy']:
+    totals = {'sell': 0, 'buy': 0, 'volume': 0}
+    for t in eve_types.values():
+        for total_key in ['sell', 'buy', 'volume']:
             totals[total_key] += t.pricing_info['totals'][total_key]
-
-    sorted_eve_types = sorted(eve_types, key=lambda k: -k.representative_value())
+    #sort buy price
+    sorted_eve_types = sorted(eve_types.values(), key=lambda k: -k.representative_value())
     displayable_line_items = []
+    fits = []
+    
     for eve_type in sorted_eve_types:
         displayable_line_items.append(eve_type.to_dict())
+        
+    #app.logger.debug("evetypes: %s", eve_types)
+
     results = {
         'from_igb': is_from_igb(),
         'totals': totals,
         'bad_line_items': bad_lines,
-        'line_items': displayable_line_items,
+        'line_items': displayable_line_items, # dict of inventory
+        'fits': fits, #dict of fits
         'created': time.time(),
         'raw_paste': raw_paste,
     }
@@ -627,4 +680,4 @@ def static_from_root():
 
 
 if __name__ == '__main__':
-    app.run(host='192.168.1.10')
+    app.run(host='0.0.0.0')

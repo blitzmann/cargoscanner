@@ -2,15 +2,15 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>{% block title %}{{_('app title')}} - {{_('app short description')}}{% endblock %}</title>
+    <title>{% block title %}fitShop - EVE Online Fitting Shopping Cart{% endblock %}</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="{{_('app short description')}}">
+    <meta name="description" content="EVE Online Fitting Shopping Cart">
 
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
-    <link href="https://netdna.bootstrapcdn.com/bootswatch/2.1.1/cyborg/bootstrap.min.css" rel="stylesheet">
+    <link href="https://netdna.bootstrapcdn.com/bootswatch/2.1.1/slate/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='bootstrap-responsive.min.css') }}" rel="stylesheet">
     <style> 
       body {
@@ -59,24 +59,21 @@
   <body>
     <div class="navbar">
       <div class="navbar-inner">
-        <a class="brand" href="{{ url_for('index') }}">{{_('app title')}}</a>
+        <a class="brand" href="{{ url_for('index') }}">fitShop</a>
         <ul class="nav">
           {% block extra_menu_items %}{% endblock %}
-          <li><a href="#help-modal" data-toggle="modal">{{_('help tile')}}</a></li>
+          <li><a href="#help-modal" data-toggle="modal">Help</a></li>
+          <li><a href="http://www.evepraisal.com/">Evepraisal</a></li>
         </ul>
       </div><!-- /.navbar-inner -->
     </div><!-- /.navbar --> 
 
     <div id="help-modal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="raw_paste_modal" aria-hidden="true">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3>{{_('help tile')}}</h3>
-      </div>
       <div class="modal-body">
-        {{_('help text')}}
+                <h4>What is this?</h4>        <p>This is a tool for Eve Online aimed at being able to quickly price check items. </p>        <h4>Why would I use this?</h4>        <p>You scan a drake full of original blueprints that you weren't able to quickly see because you sorting through the tabacco, spirits, exotic dancers, T1 planetary comodaties, livestock, garbage, scrap metal, and other random junk you're likely to find in the cargo hold. This tool will allow you to quickly see what's valuable and a rough estimate of how valueable everything is so the few seconds that you have to decide to commit won't be wasted messing messing around with eve's UI. This tool also happens to be pretty decent at doing quick price checks. It currently is known to work with cargo scan results and EFT-formatted blocks.</p>        <h4>How are prices calculated?</h5>        <p>Prices are pulled from <a href="http://eve-central.com/">Eve-Central.com</a> and (as a backup) <a href="http://eve-marketdata.com/">Eve-Marketdata.com</a>. The pricing is limited to the following regions: Forge, Metropolis, Heimatar, Sinq Laison region, Domain. This is because each of these regions has a large market hub. Capital ship prices are set by the sum of their component parts.</p>        <h4>Caveats/Known Issues</h4>        <ul>          <li>There's no reliable way to get prices of blueprint copies (BPCs). Due to this, I don't even try to guess a price for them.</li>        </ul>        <h4>Problems/More Questions?</h4>        <p>Feel free to send me an in-game mail. My character name is <a href="https://gate.eveonline.com/Profile/Magerawr" target="_blank">Magerawr</a>.</p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">{{_('close buton')}}</button>
+        <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">Close</button>
       </div>
     </div>
     {% endblock %}
@@ -85,7 +82,7 @@
 
     {% block footer %}
     <footer>
-      <p class="footer">{{_('footer text')}}</p>
+      <p class="footer">Created by <a href="https://gate.eveonline.com/Profile/Magerawr" target="_blank">Magerawr</a>. Feel free to send me questions, suggestions or donations of ISK. Source is available on <a href="https://github.com/sudorandom/cargoscanner">github</a>. <br /> All <a href="http://www.evepraisal.com/legal">Eve Related Materials</a> are property of CCP Games. See <a href="http://www.evepraisal.com/legal">Legal Notice</a></p>
     </footer>
     {% endblock %}
   </body>

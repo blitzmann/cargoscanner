@@ -3,9 +3,9 @@
           <li class="dropdown">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown">Options <b class="caret"></b></a>
             <ul class="dropdown-menu">
-              <li><label style="margin-left:10px;" class="checkbox"><input id="hide-buttons" type="checkbox"{% if session['hide_buttons'] == 'true' %} checked{% endif%}> {{_('hide buttons')}}</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-autosubmit" type="checkbox"{% if session['paste_autosubmit'] == 'true' %} checked{% endif%}> {{_('autosubmit on paste')}}</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-save" type="checkbox"{% if session['save'] != 'false' %} checked{% endif%}> {{_('save for sharing')}}</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="hide-buttons" type="checkbox"{% if session['hide_buttons'] == 'true' %} checked{% endif%}> hide buttons</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-autosubmit" type="checkbox"{% if session['paste_autosubmit'] == 'true' %} checked{% endif%}> autosubmit on paste</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-save" type="checkbox"{% if session['save'] != 'false' %} checked{% endif%}> save for sharing</label></li>
             </ul>
           </li>
 {% endblock %}
@@ -84,14 +84,32 @@ $(function() {
     <div class="container">
       <div class="row">
         <div class="span5">
-          <h4>{{_('paste box title')}}</h4>
+          <h4>Quick Estimate</h4>
           <form action="{{ url_for('estimate_cost') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="result_form">
-            <textarea class="input-block-level" id="raw_textarea" name="raw_textarea" rows="5" placeholder="{{_('paste box placeholder')}}"></textarea>
+            <textarea class="input-block-level" id="raw_textarea" name="raw_textarea" rows="20" placeholder="Copy fit here">[Imperial Navy Slicer, t1 guns?]
+
+Damage Control II
+Inertia Stabilizers II
+Nanofiber Internal Structure II
+Overdrive Injector System II
+Tracking Enhancer II
+
+Limited 1MN Microwarpdrive I
+Warp Disruptor II
+
+Small Energy Neutralizer II
+Small Focused Modulated Pulse Energy Beam I, Imperial Navy Microwave S
+Small Focused Modulated Pulse Energy Beam I, Imperial Navy Microwave S
+
+Small Capacitor Control Circuit I
+Small Capacitor Control Circuit I
+Small Processor Overclocking Unit I
+</textarea>
             <input type="hidden" name="load_full" value="1"/>
             <div class="controls">
               <div id="buttons">
-                <button type="submit" id="result_submit" class="btn btn-primary">{{_('submit button')}}</button> 
-                <button type="reset" class="btn">{{_('reset button')}}</button>
+                <button type="submit" id="result_submit" class="btn btn-primary">Submit</button> 
+                <button type="reset" class="btn">Reset</button>
               </div>
             </div>
           </form>
@@ -103,14 +121,23 @@ $(function() {
           </div>
           {% endif %}
           {% block results %}
-            <h4>{{_('what do i do title')}}</h4>
+            <h4>What do I do?</h4>
             <p>
-               {{_('what do i do')}}
+               Find something in Eve Online that you want to price check like a contract, cargo scan result, etc. Press <strong>CTRL + A, CTRL + C</strong>, then click on the lovely box to the left or above this and press <strong>CTRL + V</strong>. Submit and you should see a price breakdown of all the items.
             </p>
 
-            <h4>{{_('paste options title')}}</h4>
+            <h4>What all can I paste in there?</h4>
             <p>
-               {{_('paste options')}}
+               At first, this started as a simple cargo scan estimator but over time more formats have been added to the parser so you can use it as a more general price checker. Currently the following formats are supported:
+<ul>
+  <li>Cargo Scanner</li>
+  <li>EFT Format</li>
+  <li>D-Scan</li>
+  <li>Contracts</li>
+  <li>Asset Listing (named ships don't work)</li>
+  <li>Manual Entry. Example: "94812 Tritanium"</li>
+</ul>
+
             </p>
           {% endblock %}
         </div>
