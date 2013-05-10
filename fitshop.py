@@ -162,7 +162,7 @@ class EveFit():
         return max(sell_price, buy_price)
 
     def add_item(self, itemID):
-        self.modules.append(itemID)
+        self.modules.append(str(itemID))
         
     def incr_count(self, qty, fitted=False):
         self.qty += qty
@@ -224,7 +224,11 @@ def format_volume(value):
     except:
         return "unknown m<sup>3</sup>"
 
-
+@app.template_filter('logtype')
+def logtype(value):
+    #app.logger.debug("Type: %s", type(value))
+    return value, type(value)
+    
 @app.template_filter('relative_time')
 def relative_time(past):
     try:
@@ -594,18 +598,18 @@ def estimate_cost():
     #sort buy price
     sorted_eve_types = sorted(eve_types.values(), key=lambda k: -k.representative_value())
     sorted_fits = sorted(fits.values())
-    displayable_line_items = []
+    displayable_line_items = {}
     display_fits = []
     
 
     for eve_type in sorted_eve_types:
-        displayable_line_items.append(eve_type.to_dict())
+        displayable_line_items[str(eve_type.type_id)] = eve_type.to_dict()
     for fit in sorted_fits:
         display_fits.append(fit.to_dict())   
     #app.logger.debug("fits: %s", display_fits)
-    app.logger.debug("fits: %s", pprint.pprint(displayable_line_items[0]))
-    app.logger.debug("fits: %s", pprint.pprint(display_fits[0]))
-
+    #app.logger.debug("fits: %s", displayable_line_items)
+    #app.logger.debug("fits: %s", pprint.pprint(display_fits[0]))
+    app.logger.debug(type(displayable_line_items))
     results = {
         'from_igb': is_from_igb(),
         'totals': totals,
