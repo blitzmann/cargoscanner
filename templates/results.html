@@ -77,8 +77,8 @@
                   </div>
                 </td>
                 <td style="text-align:right">
-                  <span class="nowrap">{% if item.sell.price %}{{ item.sell.price|format_isk }}{% else %}{{ item.sell.avg|format_isk }}{% endif %}</span><br />
-                  <span class="nowrap">{% if item.buy.price %}{{ item.buy.price|format_isk }}{% else %}{{ item.buy.avg|format_isk }}{% endif %}</span>
+                  <span class="nowrap">{{ item.sell[0] }}</span><br />
+                  <span class="nowrap">{{ item.buy[0] }}</span>
                 </td> 
                 <td style="text-align:right">
                   <span class="nowrap">{{ item.totals.sell|format_isk }}</span><br />
@@ -101,6 +101,24 @@
               </tr>
             </tfoot>
           </table>
+          <table id="results" class="table table-condensed">
+            <thead>
+              <tr>
+                <th class="header">Fit</th>
+              </tr>
+            </thead>
+            <tbody>
+          
+          {% for fit in results.fits %}
+                <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ fit.typeID }})"{% endif %}>
+                    <td><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.name }} ({{ fit.typeName }})</td></tr>
+                {% for mod in fit.modules %}
+                  <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}><td style="padding-left: 30px;"><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ mod }}</td></tr>
+                {% endfor %}
+          {% endfor %}
+          </tbody>
+          </table>
+          
           <script>
             {% if results.result_id and not from_igb and not full_page %}
               window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');

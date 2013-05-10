@@ -19,6 +19,7 @@ import locale
 import redis
 import os
 import jsonpickle
+import pprint
 
 from flask import Flask, request, render_template, url_for, redirect, session, \
     send_from_directory
@@ -110,6 +111,8 @@ class EveType():
             self.fitted_count += count
 
     def to_dict(self):
+        #app.logger.debug(type(self.pricing_info))
+
         return {
             'typeID': self.type_id,
             'count': self.count,
@@ -141,13 +144,15 @@ class EveType():
 # one instance per Fit
 # includes fit name, quantity?
 class EveFit():
-    def __init__(self, type_id, name=None, qty=0):
+    def __init__(self, type_id, name="Unknown Name", qty=0, props=None):
         self.id = 0
         self.type_id = type_id # type if of fit (which ship)
         self.qty = qty # qty of ships we want
         self.name = name # name of fit
-        
-        self.items = [] # dict of modules in the format {typeid: qty}
+        self.props = props or {}
+        self.type_name = self.props.get('typeName', 0)
+       
+        self.modules = [] # list of modules in the format {typeid: qty}
 
     def representative_value(self):
         if not self.pricing_info:
@@ -156,11 +161,8 @@ class EveFit():
         buy_price = self.pricing_info.get('totals', {}).get('buy', 0)
         return max(sell_price, buy_price)
 
-    def is_market_item(self):
-        return self.props.get('market', False) == True
-
     def add_item(self, itemID):
-        self.items.append(itemID)
+        self.modules.append(itemID)
         
     def incr_count(self, qty, fitted=False):
         self.qty += qty
@@ -170,15 +172,10 @@ class EveFit():
     def to_dict(self):
         return {
             'typeID': self.type_id,
-            'count': self.count,
-            'fitted_count': self.fitted_count,
-            'market': self.market,
-            'volume': self.volume,
-            'typeName': self.type_name,
-            'groupID': self.group_id,
-            'totals': self.pricing_info.get('totals'),
-            'sell': self.pricing_info.get('sell'),
-            'buy': self.pricing_info.get('buy'),
+            'qty': self.qty,
+            'name': self.name,
+            'modules': self.modules,
+            'typeName': self.type_name
         }
 
     @classmethod
@@ -419,8 +416,8 @@ def parse_paste_items(raw_paste):
     fitID = None
     
     # add type to results list
-    def _add_type(name, count, fitted=False):
-        app.logger.debug("Adding module to FitID: %s", fitID)
+    def _add_type(name, count, append2Fit=True, fitted=False):
+        #app.logger.debug("Adding module to FitID: %s", fitID)
 
         if name == '':
             return False
@@ -433,11 +430,12 @@ def parse_paste_items(raw_paste):
         if type_id not in results:
             results[type_id] = EveType(type_id, props=details.copy())
         results[type_id].incr_count(count, fitted=fitted)
-        fits[fitID].add_item(type_id)
+        if append2Fit: #we turn this off if the item in question is the ship itself
+            fits[fitID].add_item(type_id)
         return True
         
     def _add_fit(typeName, fitName, qty=1):
-        app.logger.debug("Adding Fit")
+        #app.logger.debug("Adding Fit")
 
         if typeName == '':
             return False
@@ -449,20 +447,20 @@ def parse_paste_items(raw_paste):
         fitID = str(type_id) + fitName
 
         if type_id not in fits:
-            fits[fitID] = EveFit(type_id, fitName)
+            fits[fitID] = EveFit(type_id, fitName, props=details.copy())
         #fits[fitID].incr_count(count)
         return True, fitID
 
     for line in lines:
         fmt_line = line.lower().replace(' (original)', '')
-        app.logger.debug("Line: %s, fitID: %s",fmt_line, fitID)
+        #app.logger.debug("Line: %s, fitID: %s",fmt_line, fitID)
 
         # aiming for the format "[panther, my pimp panther]" (EFT)
         if '[' in fmt_line and ']' in fmt_line and fmt_line.count(",") > 0:
             item, name = fmt_line.lstrip('[').rstrip(']').split(',', 1)
             success, fitID = _add_fit(item.strip(), name) 
             
-            if success and _add_type(item.strip(), 1):
+            if success and _add_type(item.strip(), 1, False):
                 continue
          
         """if fitID == None: #if we do not have a fit associated with item, skip it
@@ -493,8 +491,8 @@ def parse_paste_items(raw_paste):
         # could not find appropriate format
         bad_lines.append(line)
     
-    app.logger.debug("fit: %s", jsonpickle.encode(fits))
-    return results, bad_lines
+    #app.logger.debug("fit: %s", jsonpickle.encode(fits  ))
+    return results, fits, bad_lines
 
 
 def is_from_igb():
@@ -583,7 +581,7 @@ def estimate_cost():
     session['save'] = request.form.get('save', 'true')
     
     # Parse input, send to variables
-    eve_types, bad_lines = parse_paste_items(raw_paste)
+    eve_types, fits, bad_lines = parse_paste_items(raw_paste)
 
     # Populate types with pricing data
     populate_market_values(eve_types.values())
@@ -595,20 +593,25 @@ def estimate_cost():
             totals[total_key] += t.pricing_info['totals'][total_key]
     #sort buy price
     sorted_eve_types = sorted(eve_types.values(), key=lambda k: -k.representative_value())
+    sorted_fits = sorted(fits.values())
     displayable_line_items = []
-    fits = []
+    display_fits = []
     
+
     for eve_type in sorted_eve_types:
         displayable_line_items.append(eve_type.to_dict())
-        
-    #app.logger.debug("evetypes: %s", eve_types)
+    for fit in sorted_fits:
+        display_fits.append(fit.to_dict())   
+    #app.logger.debug("fits: %s", display_fits)
+    app.logger.debug("fits: %s", pprint.pprint(displayable_line_items[0]))
+    app.logger.debug("fits: %s", pprint.pprint(display_fits[0]))
 
     results = {
         'from_igb': is_from_igb(),
         'totals': totals,
         'bad_line_items': bad_lines,
         'line_items': displayable_line_items, # dict of inventory
-        'fits': fits, #dict of fits
+        'fits': display_fits, #dict of fits
         'created': time.time(),
         'raw_paste': raw_paste,
     }
