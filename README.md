@@ -1,19 +1,22 @@
-Ship Scan Cost Estimator
+fitShop
 ========================
-Tool to use in Eve Online for evaluating the value of a ship's cargo based on cargo scan results. [Shown here](http://sudorandom.com/cargoscanner).
+Ever thought "I want to buy 3 Slicer's with this fit, one Slicer with this fit, 2 Ruptures with this fit, and 5 Nidhoggurs* with this fit"? It takes time and patience to sit there and pul up each fitting, find it in the market, and then purchase them. This tool aims to help smooth out the process a bit by consolidating all the items that the ships share into one shopping list with handy links to their market window. 
+
+I was originally going to write this from scratch in PHP, however I decided against that and as such this has become my first Python web application. It is a forked version of Evepraisal's source code, modified (honestly, hacked together) to support a few new features. I figured I would start with a solid codebase and make tweaks along the way, since as I'm learning as I go. This project uses EMDR coupled with Redis to provide pricing data, however I've left the original options of EVE-Central + Memcache in case needed.
 
 Requirements
 ============
 * Python >= 2.6
 * Flask
-* Memcache
+* Redis (recommended) or Memcache
+* (optional) EMDR consumer script (this will kill your bandwidth, but it's oh so delicious)
 
 First Run
 =========
 First, you need to download the source.
 ```
-git clone https://github.com/sudorandom/cargoscanner.git
-cd cargoscanner
+git clone https://github.com/blitzmann/fitShop.git
+cd fitShop
 ```
 
 Install requirements
@@ -23,12 +26,12 @@ pip install -r requirements.txt
 
 Start the app
 ```
-python evepraisal.py
+python fitShop.py
 ```
 
 Deployment
 ==========
-I deploy with uWSGI, nginx and supervisor but Flask is very flexable. It will also easily work with fastcgi, mod_wsgi, gunicorn, etc etc. [More details here](http://flask.pocoo.org/docs/deploying/).
+I'll let you know when I figure it out
 
 License
 =======
