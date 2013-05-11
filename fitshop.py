@@ -20,6 +20,7 @@ import redis
 import os
 import jsonpickle
 import pprint
+import short_url
 
 from flask import Flask, request, render_template, url_for, redirect, session, \
     send_from_directory
@@ -225,8 +226,7 @@ def format_volume(value):
         return "unknown m<sup>3</sup>"
 
 @app.template_filter('logtype')
-def logtype(value):
-    #app.logger.debug("Type: %s", type(value))
+def debug_type(value):
     return value, type(value)
     
 @app.template_filter('relative_time')
@@ -622,16 +622,17 @@ def estimate_cost():
     if len(sorted_eve_types) > 0:
         if session['save'] == 'true':
             result_id = save_result(results, public=True)
-            results['result_id'] = result_id
+            results['result_id'] = short_url.get_code(result_id)
         else:
             result_id = save_result(results, public=False)
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
 
-@app.route('/estimate/<int:result_id>', methods=['GET'])
+@app.route('/estimate/<string:result_id>', methods=['GET'])
 def display_result(result_id):
-    results = load_result(result_id)
+    id = short_url.get_id(result_id)
+    results = load_result(id)
     error = None
     status = 200
     if results:

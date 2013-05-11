@@ -20,7 +20,7 @@
             </div>
             {% endif%}
             <h4><span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp;&nbsp; <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value</small></span></h4>
-            <p class="nowrap">{% if results.result_id %} <strong>PemaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
+            <p class="nowrap">{% if results.result_id %} <strong>PermaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
             
           </div>
           {% set bad_line_count = results.bad_line_items|length %}
@@ -71,7 +71,7 @@
                       <a href="{{market_url}}" target="_blank">
                         <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ item.typeID }}_32.png" alt="{{ item.typeName }}">
                       </a> 
-                      <a href="{{market_url}}" target="_blank">{{ item.typeName }} ({{ id|logtype }})</a> &nbsp;
+                      <a href="{{market_url}}" target="_blank">{{ item.typeName }}</a> &nbsp;
                       <small class="nowrap">[{% if item.count > 1 %}<b>{{item.count}}</b> * {% endif %}{{ item.volume|format_volume|safe }}]</small>
                       {% if item.fitted_count is defined and item.fitted_count > 0 %}<br /><small class="nowrap">({{ item.fitted_count }}/{{ item.count }} Fitted)</small> {% endif %}
                   </div>
@@ -113,7 +113,7 @@
                 <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ fit.typeID }})"{% endif %}>
                     <td><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.name }} ({{ fit.typeName }})</td></tr>
                 {% for mod in fit.modules %}
-                  <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}><td style="padding-left: 30px;"><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ mod|logtype }}{{ results.line_items.get(mod).typeName }} </td></tr>
+                  <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}><td style="padding-left: 30px;"><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }} </td></tr>
                 {% endfor %}
           {% endfor %}
           </tbody>
