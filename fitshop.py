@@ -53,7 +53,7 @@ SECRET_KEY = 'SET ME TO SOMETHING SECRET IN THE APP CONFIG!'
 
 emdr = redis.StrictRedis(host='localhost', port=6379, db=0)
 #shopping = redis.StrictRedis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
-test = redis.StrictRedis(host='localhost', port=6379, db=3)
+fitshop = redis.StrictRedis(host='localhost', port=6379, db=3)
 
 cache = Cache()
 app = Flask(__name__)
@@ -279,118 +279,27 @@ def get_cached_values(eve_types):
 
     return found
 
-
-def get_market_values(eve_types):
-    """
-        Takes list of typeIds. Returns dict of pricing details with typeId as
-        the key. Calls out to the eve-central.
-
-        Example Return Value:
-        {
-            21574:{
-             'all': {'avg': 254.83, 'min': 254.83, 'max': 254.83, 'price': 254.83},
-             'buy': {'avg': 5434414.43, 'min': 5434414.43, 'max': 5434414.43, 'price': 5434414.43},
-             'sell': {'avg': 10552957.04, 'min': 10552957.04, 'max': 10552957.04, 'price': 10552957.04}
-        }
-    """
-    app.logger.debug("MARKET")
-    if len(eve_types) == 0:
-        return {}
-
-    market_prices = {}
-    for types in [eve_types[i:i + 200] for i in range(0, len(eve_types), 200)]:
-        typeids = ["typeid=" + str(x.type_id) for x in types]
-        # Forge (for jita): 10000002
-        # Metropolis (for hek): 10000042
-        # Heimatar (for rens): 10000030
-        # Sinq Laison region (for dodixie): 10000032
-        # Domain (for amarr): 10000043
-        regions = ['regionlimit=10000002', 'regionlimit=10000042',
-            'regionlimit=10000030', 'regionlimit=10000032', 'regionlimit=10000043']
-        query_str = '&'.join(regions + typeids)
-        url = "http://api.eve-central.com/api/marketstat?%s" % query_str
-        try:
-            request = urllib2.Request(url)
-            request.add_header('User-Agent', app.config['USER_AGENT'])
-            response = urllib2.build_opener().open(request).read()
-            stats = ET.fromstring(response).findall("./marketstat/type")
-
-            for marketstat in stats:
-                k = int(marketstat.attrib.get('id'))
-                v = {}
-                for stat_type in ['sell', 'buy', 'all']:
-                    props = {}
-                    for stat in marketstat.find(stat_type):
-                        props[stat.tag] = float(stat.text)
-                    v[stat_type] = props
-                v['all']['price'] = v['all']['percentile']
-                v['buy']['price'] = v['buy']['percentile']
-                v['sell']['price'] = v['sell']['percentile']
-                market_prices[k] = v
-
-                # Cache for up to 10 hours
-                cache.set(memcache_type_key(k), v, timeout=10 * 60 * 60)
-        except urllib2.HTTPError:
-            pass
-    return market_prices
-
-
-def get_market_values_2(eve_types):
-    """
-        Takes list of typeIds. Returns dict of pricing details with typeId as
-        the key. Calls out to the eve-marketdata.
-        Example Return Value:
-        {
-            21574:{
-             'all': {'avg': 254.83, 'min': 254.83, 'max': 254.83, 'price': 254.83},
-             'buy': {'avg': 5434414.43, 'min': 5434414.43, 'max': 5434414.43, 'price': 5434414.43},
-             'sell': {'avg': 10552957.04, 'min': 10552957.04, 'max': 10552957.04, 'price': 10552957.04}
-        }
-    """
-    if len(eve_types) == 0:
-        return {}
-
-    market_prices = {}
-    for types in [eve_types[i:i + 200] for i in range(0, len(eve_types), 200)]:
-        typeIds_str = ','.join(str(x.type_id) for x in types)
-        url = "http://api.eve-marketdata.com/api/item_prices2.json?char_name=magerawr&type_ids=%s&buysell=a" % typeIds_str
-        try:
-            request = urllib2.Request(url)
-            request.add_header('User-Agent', app.config['USER_AGENT'])
-            response = json.loads(urllib2.build_opener().open(request).read())
-
-            for row in response['emd']['result']:
-                row = row['row']
-                k = int(row['typeID'])
-                if k not in market_prices:
-                    market_prices[k] = {}
-                if row['buysell'] == 's':
-                    price = float(row['price'])
-                    market_prices[k]['sell'] = {'avg': price, 'min': price, 'max': price}
-                elif row['buysell'] == 'b':
-                    price = float(row['price'])
-                    market_prices[k]['buy'] = {'avg': price, 'min': price, 'max': price}
-
-            for typeId, prices in market_prices.iteritems():
-                avg = (prices['sell']['avg'] + prices['buy']['avg']) / 2
-                market_prices[typeId]['all'] = {'avg': avg, 'min': avg, 'max': avg, 'price': avg}
-                market_prices[typeId]['buy']['price'] = market_prices[typeId]['buy']['max']
-                market_prices[typeId]['sell']['price'] = market_prices[typeId]['sell']['min']
-
-                # Cache for up to 10 hours
-                cache.set(memcache_type_key(typeId), prices, timeout=10 * 60 * 60)
-        except urllib2.HTTPError:
-            pass
-    return market_prices
-
-
-def save_result(result, public=True):
+def save_result(result, public=True, result_id=False):
     data = json.dumps(result, indent=2)
-    result = scans.insert().values(Data=data, Created=int(time.time()),
-        BuyValue=result['totals']['buy'],
-        SellValue=result['totals']['sell'],
-        Public=public).execute()
-    return result.inserted_primary_key[0]
+    
+    if result_id is False:
+        result_id = fitshop.incr("fitshop_id")
+        app.logger.debug("saving to new id") 
+
+    else:
+        try:
+            result_id = int(result_id)
+            app.logger.debug("saving to old id") 
+        except:
+            app.logger.debug("saving to new id") 
+            result_id = fitshop.incr("fitshop_id")
+
+    fitshop.set("results:%s" % result_id, data)
+    #result = scans.insert().values(Data=data, Created=int(time.time()),
+    #    BuyValue=result['totals']['buy'],
+    #    SellValue=result['totals']['sell'],
+    #    Public=public).execute()
+    return result_id
 
 
 def load_result(result_id):
@@ -399,10 +308,14 @@ def load_result(result_id):
     except:
         return
 
-    data = cache.get("results:%s" % result_id)
+    data = fitshop.get("results:%s" % result_id)
+    
     if data:
-        return data
-
+        app.logger.debug("DATA IN CACHE")
+        return json.loads(data)
+    
+    '''
+    app.logger.debug("COULD NOT FIND DATA IN CACHE")
     row = select([scans.c.Data], (scans.c.Id == result_id) &
         ((scans.c.Public == True) | (scans.c.Public == None))).execute().first()
     if row:
@@ -413,7 +326,7 @@ def load_result(result_id):
 
         cache.set("results:%s" % result_id, data, timeout=600)
         return data
-
+    '''
 
 def parse_paste_items(raw_paste, previous_results = None):
     """
@@ -591,18 +504,20 @@ def estimate_cost():
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
-    
+    prev_result = False
     result_id = short_url.get_id(request.form.get('result_id', 'true'))
-    result_id = 67;
     results = load_result(result_id)
     
     dic = {}
-    #app.logger.debug(results)
-    for id, item in results['line_items'].iteritems():
-        #app.logger.debug(item)
-        a = EveType(item['typeID'])
-        #app.logger.debug(a)
-        dic[item['typeID']] = a.from_dict(EveType, item)
+    if results:
+        prev_result = True
+        #create dict with EveType for old results
+        #app.logger.debug(results)
+        for id, item in results['line_items'].iteritems():
+            #app.logger.debug(item)
+            a = EveType(item['typeID'])
+            #app.logger.debug(a)
+            dic[item['typeID']] = a.from_dict(EveType, item)
     
     
     # Parse input, send to variables
@@ -616,8 +531,8 @@ def estimate_cost():
     
     #app.logger.debug(dic)
     #app.logger.debug(eve_types)
-    app.logger.debug(jsonpickle.encode(dic.get(2605)))
-    app.logger.debug(jsonpickle.encode(eve_types.get(2605)))
+    #app.logger.debug(jsonpickle.encode(dic.get(2605)))
+    #app.logger.debug(jsonpickle.encode(eve_types.get(2605)))
 
 
     # calculate the totals
@@ -635,11 +550,16 @@ def estimate_cost():
     for eve_type in sorted_eve_types:
         displayable_line_items[str(eve_type.type_id)] = eve_type.to_dict()
     for fit in sorted_fits:
-        display_fits.append(fit.to_dict())   
+        display_fits.append(fit.to_dict())  
+        
     #app.logger.debug("fits: %s", display_fits)
     #app.logger.debug("fits: %s", displayable_line_items)
     #app.logger.debug("fits: %s", pprint.pprint(display_fits[0]))
     #app.logger.debug(type(displayable_line_items))
+    
+  
+    #app.logger.debug("no previous results found, creating new result dict")
+    
     results = {
         'from_igb': is_from_igb(),
         'totals': totals,
@@ -649,14 +569,15 @@ def estimate_cost():
         'created': time.time(),
         'raw_paste': raw_paste,
     }
+    
     if len(sorted_eve_types) > 0:
         if session['save'] == 'true':
-            result_id = save_result(results, public=True)
+            result_id = save_result(results, public=True, result_id=(result_id if prev_result else False))
             results['result_id'] = short_url.get_code(result_id)
-            results['auth_hash'] = short_hash(10)
-            #session['auth'][result_id] = results['auth_hash']
+            results['auth_hash'] = short_hash(6)
         else:
-            result_id = save_result(results, public=False)
+            result_id = save_result(results, public=False, result_id=(result_id if prev_result else False))
+    
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
@@ -718,6 +639,108 @@ def legal():
 def static_from_root():
     return send_from_directory(app.static_folder, request.path[1:])
 
+def get_market_values(eve_types):
+    """
+        Takes list of typeIds. Returns dict of pricing details with typeId as
+        the key. Calls out to the eve-central.
+
+        Example Return Value:
+        {
+            21574:{
+             'all': {'avg': 254.83, 'min': 254.83, 'max': 254.83, 'price': 254.83},
+             'buy': {'avg': 5434414.43, 'min': 5434414.43, 'max': 5434414.43, 'price': 5434414.43},
+             'sell': {'avg': 10552957.04, 'min': 10552957.04, 'max': 10552957.04, 'price': 10552957.04}
+        }
+    """
+    app.logger.debug("MARKET")
+    if len(eve_types) == 0:
+        return {}
+
+    market_prices = {}
+    for types in [eve_types[i:i + 200] for i in range(0, len(eve_types), 200)]:
+        typeids = ["typeid=" + str(x.type_id) for x in types]
+        # Forge (for jita): 10000002
+        # Metropolis (for hek): 10000042
+        # Heimatar (for rens): 10000030
+        # Sinq Laison region (for dodixie): 10000032
+        # Domain (for amarr): 10000043
+        regions = ['regionlimit=10000002', 'regionlimit=10000042',
+            'regionlimit=10000030', 'regionlimit=10000032', 'regionlimit=10000043']
+        query_str = '&'.join(regions + typeids)
+        url = "http://api.eve-central.com/api/marketstat?%s" % query_str
+        try:
+            request = urllib2.Request(url)
+            request.add_header('User-Agent', app.config['USER_AGENT'])
+            response = urllib2.build_opener().open(request).read()
+            stats = ET.fromstring(response).findall("./marketstat/type")
+
+            for marketstat in stats:
+                k = int(marketstat.attrib.get('id'))
+                v = {}
+                for stat_type in ['sell', 'buy', 'all']:
+                    props = {}
+                    for stat in marketstat.find(stat_type):
+                        props[stat.tag] = float(stat.text)
+                    v[stat_type] = props
+                v['all']['price'] = v['all']['percentile']
+                v['buy']['price'] = v['buy']['percentile']
+                v['sell']['price'] = v['sell']['percentile']
+                market_prices[k] = v
+
+                # Cache for up to 10 hours
+                cache.set(memcache_type_key(k), v, timeout=10 * 60 * 60)
+        except urllib2.HTTPError:
+            pass
+    return market_prices
+
+
+def get_market_values_2(eve_types):
+    """
+        Takes list of typeIds. Returns dict of pricing details with typeId as
+        the key. Calls out to the eve-marketdata.
+        Example Return Value:
+        {
+            21574:{
+             'all': {'avg': 254.83, 'min': 254.83, 'max': 254.83, 'price': 254.83},
+             'buy': {'avg': 5434414.43, 'min': 5434414.43, 'max': 5434414.43, 'price': 5434414.43},
+             'sell': {'avg': 10552957.04, 'min': 10552957.04, 'max': 10552957.04, 'price': 10552957.04}
+        }
+    """
+    if len(eve_types) == 0:
+        return {}
+
+    market_prices = {}
+    for types in [eve_types[i:i + 200] for i in range(0, len(eve_types), 200)]:
+        typeIds_str = ','.join(str(x.type_id) for x in types)
+        url = "http://api.eve-marketdata.com/api/item_prices2.json?char_name=magerawr&type_ids=%s&buysell=a" % typeIds_str
+        try:
+            request = urllib2.Request(url)
+            request.add_header('User-Agent', app.config['USER_AGENT'])
+            response = json.loads(urllib2.build_opener().open(request).read())
+
+            for row in response['emd']['result']:
+                row = row['row']
+                k = int(row['typeID'])
+                if k not in market_prices:
+                    market_prices[k] = {}
+                if row['buysell'] == 's':
+                    price = float(row['price'])
+                    market_prices[k]['sell'] = {'avg': price, 'min': price, 'max': price}
+                elif row['buysell'] == 'b':
+                    price = float(row['price'])
+                    market_prices[k]['buy'] = {'avg': price, 'min': price, 'max': price}
+
+            for typeId, prices in market_prices.iteritems():
+                avg = (prices['sell']['avg'] + prices['buy']['avg']) / 2
+                market_prices[typeId]['all'] = {'avg': avg, 'min': avg, 'max': avg, 'price': avg}
+                market_prices[typeId]['buy']['price'] = market_prices[typeId]['buy']['max']
+                market_prices[typeId]['sell']['price'] = market_prices[typeId]['sell']['min']
+
+                # Cache for up to 10 hours
+                cache.set(memcache_type_key(typeId), prices, timeout=10 * 60 * 60)
+        except urllib2.HTTPError:
+            pass
+    return market_prices
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')

@@ -121,10 +121,8 @@
           </table>
           
           <script>
-            {% if results.result_id %}
-                {% if not from_igb and not full_page %}
-                  window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
-                {% endif %}
+            {% if results.result_id and not from_igb and not full_page%}
+              window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
             {% endif %}
             
           {% endblock %}
