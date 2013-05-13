@@ -21,6 +21,8 @@ import os
 import jsonpickle
 import pprint
 import short_url
+from short_hash import short_hash
+import pickle
 
 from flask import Flask, request, render_template, url_for, redirect, session, \
     send_from_directory
@@ -51,6 +53,7 @@ SECRET_KEY = 'SET ME TO SOMETHING SECRET IN THE APP CONFIG!'
 
 emdr = redis.StrictRedis(host='localhost', port=6379, db=0)
 #shopping = redis.StrictRedis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
+test = redis.StrictRedis(host='localhost', port=6379, db=3)
 
 cache = Cache()
 app = Flask(__name__)
@@ -131,6 +134,8 @@ class EveType():
     def from_dict(self, cls, d):
         return cls(d['typeID'], d['count'],
             {
+                'typeID' : d.get('typeID'),
+                'market': d.get('market'),
                 'typeName': d.get('typeName'),
                 'groupID': d.get('groupID'),
                 'volume': d.get('volume')
@@ -201,6 +206,9 @@ def format_isk(value):
     except:
         return ""
 
+@app.template_filter('convert_id')
+def convert_id(hash):
+    return short_url.get_id(hash)
 
 @app.template_filter('format_isk_human')
 def format_isk_human(value):
@@ -407,7 +415,7 @@ def load_result(result_id):
         return data
 
 
-def parse_paste_items(raw_paste):
+def parse_paste_items(raw_paste, previous_results = None):
     """
         Takes a scan result and returns:
             {'name': {details}, ...}, ['bad line']
@@ -415,7 +423,7 @@ def parse_paste_items(raw_paste):
     lines = [line.strip() for line in raw_paste.splitlines() if line.strip()]
 
     fits = {} # {'typeID-name': EveFit instance}
-    results = {} # list of items
+    results = previous_results or {} # list of items
     bad_lines = []
     fitID = None
     
@@ -584,11 +592,33 @@ def estimate_cost():
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
     
+    result_id = short_url.get_id(request.form.get('result_id', 'true'))
+    result_id = 67;
+    results = load_result(result_id)
+    
+    dic = {}
+    #app.logger.debug(results)
+    for id, item in results['line_items'].iteritems():
+        #app.logger.debug(item)
+        a = EveType(item['typeID'])
+        #app.logger.debug(a)
+        dic[item['typeID']] = a.from_dict(EveType, item)
+    
+    
     # Parse input, send to variables
-    eve_types, fits, bad_lines = parse_paste_items(raw_paste)
-
+    eve_types, fits, bad_lines = parse_paste_items(raw_paste, dic)
+    
+   
     # Populate types with pricing data
     populate_market_values(eve_types.values())
+   
+    #populate_market_values(dic.values())
+    
+    #app.logger.debug(dic)
+    #app.logger.debug(eve_types)
+    app.logger.debug(jsonpickle.encode(dic.get(2605)))
+    app.logger.debug(jsonpickle.encode(eve_types.get(2605)))
+
 
     # calculate the totals
     totals = {'sell': 0, 'buy': 0, 'volume': 0}
@@ -609,7 +639,7 @@ def estimate_cost():
     #app.logger.debug("fits: %s", display_fits)
     #app.logger.debug("fits: %s", displayable_line_items)
     #app.logger.debug("fits: %s", pprint.pprint(display_fits[0]))
-    app.logger.debug(type(displayable_line_items))
+    #app.logger.debug(type(displayable_line_items))
     results = {
         'from_igb': is_from_igb(),
         'totals': totals,
@@ -623,6 +653,8 @@ def estimate_cost():
         if session['save'] == 'true':
             result_id = save_result(results, public=True)
             results['result_id'] = short_url.get_code(result_id)
+            results['auth_hash'] = short_hash(10)
+            #session['auth'][result_id] = results['auth_hash']
         else:
             result_id = save_result(results, public=False)
     return render_template('results.html', results=results,

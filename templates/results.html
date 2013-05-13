@@ -1,7 +1,8 @@
           {% if full_page %}{% extends 'index.html' %}{% endif -%}
           {% block results %}
           <div>
-            <p>Result {% if results.result_id %}#{{ results.result_id }} {% endif %}<small> {% if results.created %}<small>created {{ results.created|relative_time}}</small> {% endif %} 
+            {% if results.result_id %}<input  type='hidden' id='return_id' value='{{results.result_id}}' />{% endif %}
+            <p>Result {% if results.result_id %}#{{ results.result_id }} ({{ results.result_id|convert_id }}) {% endif %} HASH {{ results.auth_hash }} <small> {% if results.created %}<small>created {{ results.created|relative_time}}</small> {% endif %} 
             {% if results.raw_paste %}<a href="#raw-result-modal" data-toggle="modal">View Raw</a>{% endif%}</small>
             </p>
             {% if results.raw_paste %}
@@ -20,7 +21,7 @@
             </div>
             {% endif%}
             <h4><span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp;&nbsp; <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value</small></span></h4>
-            <p class="nowrap">{% if results.result_id %} <strong>PermaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
+            <p class="nowrap">{% if results.result_id %} <strong>PemaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
             
           </div>
           {% set bad_line_count = results.bad_line_items|length %}
@@ -120,8 +121,10 @@
           </table>
           
           <script>
-            {% if results.result_id and not from_igb and not full_page %}
-              window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
+            {% if results.result_id %}
+                {% if not from_igb and not full_page %}
+                  window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
+                {% endif %}
             {% endif %}
-          </script>
+            
           {% endblock %}

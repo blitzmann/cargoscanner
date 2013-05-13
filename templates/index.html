@@ -3,9 +3,11 @@
           <li class="dropdown">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown">Options <b class="caret"></b></a>
             <ul class="dropdown-menu">
-              <li><label style="margin-left:10px;" class="checkbox"><input id="hide-buttons" type="checkbox"{% if session['hide_buttons'] == 'true' %} checked{% endif%}> hide buttons</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-autosubmit" type="checkbox"{% if session['paste_autosubmit'] == 'true' %} checked{% endif%}> autosubmit on paste</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-save" type="checkbox"{% if session['save'] != 'false' %} checked{% endif%}> save for sharing</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="hide-buttons" type="checkbox"{% if session['hide_buttons'] == 'true' %} checked{% endif%}> Hide buttons</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-autosubmit" type="checkbox"{% if session['paste_autosubmit'] == 'true' %} checked{% endif%}> Autosubmit on paste</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-save" type="checkbox"{% if session['save'] != 'false' %} checked{% endif%}> Save</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="pass-protect" type="checkbox"{% if session['protect'] != 'false' %} checked{% endif%}> Password Protect Shopping List</label></li>
+
             </ul>
           </li>
 {% endblock %}
@@ -25,7 +27,8 @@ $(function() {
         raw_paste: result.val(),
         hide_buttons: $("#hide-buttons").is(':checked'),
         paste_autosubmit: $("#paste-autosubmit").is(':checked'),
-        save: $("#paste-save").is(':checked')
+        save: $("#paste-save").is(':checked'),
+        result_id: $('#working_id').val(),
       }, 
       function(data) {
         result.val('');
@@ -34,17 +37,12 @@ $(function() {
         result_submit.removeAttr("disabled").removeClass("disabled");
         // Populate results
         $('#result_container').html(data);
-        if (typeof(_gaq) != "undefined") {
-          _gaq.push(['_trackEvent', 'estimate_cost', 'success']);
-        }
+        $('#working_id').val($('#return_id').val());
       }).error(function() {
         // Enable form components
         result.removeAttr("disabled").removeClass("disabled");
         result_submit.removeAttr("disabled").removeClass("disabled");
         alert("Server responded with an error.");
-        if (typeof(_gaq) != "undefined") {
-          _gaq.push(['_trackEvent', 'estimate_cost', 'fail']);
-        }
       });
     return false;
   });
@@ -86,6 +84,7 @@ $(function() {
         <div class="span5">
           <h4>Quick Estimate</h4>
           <form action="{{ url_for('estimate_cost') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="result_form">
+            Working result: <input name="result_id" id="working_id" value="" />
             <textarea class="input-block-level" id="raw_textarea" name="raw_textarea" rows="20" placeholder="Copy fit here">[Imperial Navy Slicer, t1 guns?]
 
 Damage Control II
