@@ -112,7 +112,7 @@
           {{ results.line_items.get(2048).typeName }}
           {% for fit in results.fits %}
                 <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ fit.typeID }})"{% endif %}>
-                    <td><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.name }} ({{ fit.typeName }})</td></tr>
+                    <td><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }} ({{ results.line_items.get(fit.typeID).typeName }})</td></tr>
                 {% for mod in fit.modules %}
                   <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}><td style="padding-left: 30px;"><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }} </td></tr>
                 {% endfor %}

@@ -150,15 +150,13 @@ class EveType():
 # one instance per Fit
 # includes fit name, quantity?
 class EveFit():
-    def __init__(self, type_id, name="Unknown Name", qty=0, props=None):
+    def __init__(self, type_id, name="Unknown Name", qty=0, modules=None):
         self.id = 0
         self.type_id = type_id # type if of fit (which ship)
         self.qty = qty # qty of ships we want
         self.name = name # name of fit
-        self.props = props or {}
-        self.type_name = self.props.get('typeName', 0)
        
-        self.modules = [] # list of modules in the format {typeid: qty}
+        self.modules = modules or [] # list of modules in the format {typeid: qty}
 
     def representative_value(self):
         if not self.pricing_info:
@@ -170,34 +168,22 @@ class EveFit():
     def add_item(self, itemID):
         self.modules.append(str(itemID))
         
-    def incr_count(self, qty, fitted=False):
+    def incr_count(self, qty):
+        app.logger.debug('incr fit by %s' % qty)
         self.qty += qty
-        if fitted:
-            self.fitted_count += count
 
     def to_dict(self):
         return {
-            'typeID': self.type_id,
+            'typeID': str(self.type_id),
             'qty': self.qty,
             'name': self.name,
             'modules': self.modules,
-            'typeName': self.type_name
         }
 
     @classmethod
     def from_dict(self, cls, d):
-        return cls(d['typeID'], d['count'],
-            {
-                'typeName': d.get('typeName'),
-                'groupID': d.get('groupID'),
-                'volume': d.get('volume')
-            },
-            {
-                'totals': d.get('totals'),
-                'sell': d.get('sell'),
-                'buy': d.get('buy'),
-            }
-        )
+        return cls(d['typeID'], d['name'], d['qty'], d['modules'])
+        
 
 @app.template_filter('format_isk')
 def format_isk(value):
@@ -284,15 +270,12 @@ def save_result(result, public=True, result_id=False):
     
     if result_id is False:
         result_id = fitshop.incr("fitshop_id")
-        app.logger.debug("saving to new id") 
 
     else:
         try:
             result_id = int(result_id)
-            app.logger.debug("saving to old id") 
         except:
             app.logger.debug("saving to new id") 
-            result_id = fitshop.incr("fitshop_id")
 
     fitshop.set("results:%s" % result_id, data)
     #result = scans.insert().values(Data=data, Created=int(time.time()),
@@ -328,21 +311,24 @@ def load_result(result_id):
         return data
     '''
 
-def parse_paste_items(raw_paste, previous_results = None):
+def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
     """
         Takes a scan result and returns:
             {'name': {details}, ...}, ['bad line']
     """
     lines = [line.strip() for line in raw_paste.splitlines() if line.strip()]
 
-    fits = {} # {'typeID-name': EveFit instance}
+    fits = previous_fits or {} # {'typeID-name': EveFit instance}
     results = previous_results or {} # list of items
     bad_lines = []
-    fitID = None
+    fitID = None #current fit id
     
+    app.logger.debug("old fits: %s", fits)
+    
+    fit_append = False # True if the modules need to be appended to fitting modules list, False is the fit is already in system (skip appending of modules)
     # add type to results list
     def _add_type(name, count, append2Fit=True, fitted=False):
-        #app.logger.debug("Adding module to FitID: %s", fitID)
+        #app.logger.debug("Append to fit: %s", append2Fit)
 
         if name == '':
             return False
@@ -370,11 +356,17 @@ def parse_paste_items(raw_paste, previous_results = None):
             return False # doesn't exist
         type_id = details['typeID']
         fitID = str(type_id) + fitName
-
-        if type_id not in fits:
-            fits[fitID] = EveFit(type_id, fitName, props=details.copy())
+        # todo: possibly use hash of object to determine fits that are the same?
+        if fitID not in fits:
+            app.logger.debug("FIT NOT FOUND, INSERTING")
+            fit_append = True
+            fits[fitID] = EveFit(type_id, fitName)
+        else:
+            # found fit, do not append modules
+            fit_append = False
+        fits[fitID].incr_count(qty)
         #fits[fitID].incr_count(count)
-        return True, fitID
+        return True, fitID, fit_append
 
     for line in lines:
         fmt_line = line.lower().replace(' (original)', '')
@@ -383,7 +375,7 @@ def parse_paste_items(raw_paste, previous_results = None):
         # aiming for the format "[panther, my pimp panther]" (EFT)
         if '[' in fmt_line and ']' in fmt_line and fmt_line.count(",") > 0:
             item, name = fmt_line.lstrip('[').rstrip(']').split(',', 1)
-            success, fitID = _add_fit(item.strip(), name) 
+            success, fitID, fit_append = _add_fit(item.strip(), name) 
             
             if success and _add_type(item.strip(), 1, False):
                 continue
@@ -393,22 +385,22 @@ def parse_paste_items(raw_paste, previous_results = None):
             continue
 """
         # aiming for the format "Cargo Scanner II" (Basic Listing)
-        if _add_type(fmt_line, 1):
+        if _add_type(fmt_line, 1, fit_append):
             continue
             
         # aiming for the format (EFT)
         # "800mm Repeating Artillery II, Republic Fleet EMP L"
         if ',' in fmt_line:
             item, item2 = fmt_line.rsplit(',', 1)
-            _add_type(item2.strip(), 1)
-            if _add_type(item.strip(), 1):
+            _add_type(item2.strip(), 1, fit_append)
+            if _add_type(item.strip(), 1, fit_append):
                 continue
 
         # aiming for the format "Hornet x5" (EFT)
         try:
             if 'x' in fmt_line:
                 item, count = fmt_line.rsplit('x', 1)       # remove , and . from count (decimal seperators)
-                if _add_type(item.strip(), int(count.strip().replace(',', '').replace('.', ''))):
+                if _add_type(item.strip(), int(count.strip().replace(',', '').replace('.', '')), fit_append):
                     continue
         except ValueError:
             pass
@@ -509,6 +501,7 @@ def estimate_cost():
     results = load_result(result_id)
     
     dic = {}
+    fits = {}
     if results:
         prev_result = True
         #create dict with EveType for old results
@@ -518,10 +511,14 @@ def estimate_cost():
             a = EveType(item['typeID'])
             #app.logger.debug(a)
             dic[item['typeID']] = a.from_dict(EveType, item)
-    
+        for item in results['fits']:
+            #app.logger.debug(item)
+            a = EveFit(item['typeID'])
+            #app.logger.debug(a)
+            fits[str(item['typeID'])+item['name']] = a.from_dict(EveFit, item)
     
     # Parse input, send to variables
-    eve_types, fits, bad_lines = parse_paste_items(raw_paste, dic)
+    eve_types, fits, bad_lines = parse_paste_items(raw_paste, dic, fits)
     
    
     # Populate types with pricing data
