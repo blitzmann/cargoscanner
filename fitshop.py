@@ -36,24 +36,22 @@ from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Text,\
 
 # configuration
 DEBUG = True
-TYPES = json.loads(open('data/types.json').read())
-USER_AGENT = 'Evepraisal/1.0 +http://evepraisal.com/'
-SQLALCHEMY_DATABASE_URI = 'sqlite:///data/scans.db'
+TYPES = json.loads(open('/home/http/public/fitshop/data/types.json').read())
+USER_AGENT = 'FitShop/1.0'
+SQLALCHEMY_DATABASE_URI = 'sqlite:///home/http/public/fitshop/data/scans.db'
 CACHE_TYPE = 'redis'
-CACHE_KEY_PREFIX = 'evepraisal'
+CACHE_KEY_PREFIX = 'fitshop'
 #CACHE_MEMCACHED_SERVERS = ['127.0.0.1:11211']
 CACHE_REDIS_HOST = '127.0.0.1'
 CACHE_REDIS_PORT = 6379
 #CACHE_DEFAULT_TIMEOUT = 10 * 60
-#CACHE_REDIS_DB = ;
 TEMPLATE = 'default'
 SECRET_KEY = 'SET ME TO SOMETHING SECRET IN THE APP CONFIG!'
-#REDIS_EMDR_DB = 0
-#REDIS_SHOPPING_DB = 3
+REDIS_EMDR_DB = 0
+REDIS_SHOPPING_DB = 3
 
-emdr = redis.StrictRedis(host='localhost', port=6379, db=0)
-#shopping = redis.StrictRedis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
-fitshop = redis.StrictRedis(host='localhost', port=6379, db=3)
+emdr = redis.StrictRedis(host='localhost', port=6379, db=REDIS_EMDR_DB)
+fitshop = redis.StrictRedis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
 
 cache = Cache()
 app = Flask(__name__)
@@ -115,8 +113,6 @@ class EveType():
             self.fitted_count += count
 
     def to_dict(self):
-        #app.logger.debug(type(self.pricing_info))
-
         return {
             'typeID': self.type_id,
             'count': self.count,
@@ -169,7 +165,6 @@ class EveFit():
         self.modules.append(str(itemID))
         
     def incr_count(self, qty):
-        app.logger.debug('incr fit by %s' % qty)
         self.qty += qty
 
     def to_dict(self):
@@ -244,48 +239,40 @@ def bpc_count(bad_lines):
 def get_locale():
     return request.accept_languages.best_match(['en'])
 
-
-def emdr_type_key(typeId):
-    return "emdr-1-10000002-%s" % typeId
-
-
-def memcache_type_key(typeId):
-    return "prices:%s" % typeId
-
+def emdr_type_key(type_id, region_id=10000002):
+    return "emdr-1-%s-%s" % (region_id, type_id)
 
 def get_cached_values(eve_types):
-    "Get Cached values given the eve_types"
+    "Get cached pricing data of eve_types from EMDR"
+    "returns: {type_id: {sell: [...], buy: [...]}}"
+    
     found = {}
     for eve_type in eve_types:
         key = emdr_type_key(eve_type.type_id)
-        obj = simplejson.loads(emdr.get(key))
-        if obj:
-            #app.logger.debug("Found cache for %d: %s", eve_type.type_id, obj) 
-            found[eve_type.type_id] = obj['orders']
-
+        prices = simplejson.loads(emdr.get(key))
+        if prices:
+            found[eve_type.type_id] = prices['orders']
+    
     return found
 
 def save_result(result, public=True, result_id=False):
+    "Save result to cache"
     data = json.dumps(result, indent=2)
-    
     if result_id is False:
         result_id = fitshop.incr("fitshop_id")
-
     else:
         try:
             result_id = int(result_id)
         except:
-            app.logger.debug("saving to new id") 
-
+            result_id = fitshop.incr("fitshop_id")
+    
     fitshop.set("results:%s" % result_id, data)
-    #result = scans.insert().values(Data=data, Created=int(time.time()),
-    #    BuyValue=result['totals']['buy'],
-    #    SellValue=result['totals']['sell'],
-    #    Public=public).execute()
+
     return result_id
 
 
 def load_result(result_id):
+    "Load result from cache"
     try:
         result_id = int(result_id)
     except:
@@ -294,23 +281,8 @@ def load_result(result_id):
     data = fitshop.get("results:%s" % result_id)
     
     if data:
-        app.logger.debug("DATA IN CACHE")
         return json.loads(data)
     
-    '''
-    app.logger.debug("COULD NOT FIND DATA IN CACHE")
-    row = select([scans.c.Data], (scans.c.Id == result_id) &
-        ((scans.c.Public == True) | (scans.c.Public == None))).execute().first()
-    if row:
-        data = json.loads(row[0])
-        if 'raw_scan' in data:
-            data['raw_paste'] = data['raw_scan']
-            del data['raw_scan']
-
-        cache.set("results:%s" % result_id, data, timeout=600)
-        return data
-    '''
-
 def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
     """
         Takes a scan result and returns:
@@ -427,7 +399,7 @@ def get_invalid_values(eve_types):
                 'sell': zeroed_price.copy(),
             }
             invalid_items[eve_type.type_id] = price_info
-    #app.logger.debug("Invalid market items: "+json.dumps(invalid_items))
+
     return invalid_items
 
 
@@ -462,7 +434,7 @@ def get_componentized_values(eve_types):
 
 def populate_market_values(eve_types, methods=None):
     unpopulated_types = list(eve_types)
-    #app.logger.debug("POPULATING MARKET DATA")
+
     if methods is None:
         methods = [get_invalid_values, get_cached_values]
     for pricing_method in methods:
@@ -480,18 +452,18 @@ def populate_market_values(eve_types, methods=None):
                 for total_key in ['sell', 'buy']:
                     _total = float(pdata[total_key][0]) * eve_type.count
                     pdata['totals'][total_key] = _total
-                #app.logger.debug("%d: pdata: %s", eve_type.type_id, pdata)
+
                 eve_type.pricing_info = pdata
             else:
                 new_unpopulated_types.append(eve_type)
         unpopulated_types = new_unpopulated_types
-    #app.logger.debug("eve_types: %s", jsonpickle.encode(eve_types))
+
     return eve_types
 
 
-@app.route('/estimate', methods=['POST'])
-def estimate_cost():
-    "Estimate Cost of pasted stuff result given by POST[raw_paste]. Renders HTML"
+@app.route('/shop', methods=['POST'])
+def submit():
+    "Main function. So direty work of submission and returns results"
     raw_paste = request.form.get('raw_paste', '')
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
@@ -579,7 +551,7 @@ def estimate_cost():
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
 
-@app.route('/estimate/<string:result_id>', methods=['GET'])
+@app.route('/shop/<string:result_id>', methods=['GET'])
 def display_result(result_id):
     id = short_url.get_id(result_id)
     results = load_result(id)
