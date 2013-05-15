@@ -21,7 +21,7 @@
             </div>
             {% endif%}
             <h4><span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp;&nbsp; <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value</small></span></h4>
-            <p class="nowrap">{% if results.result_id %} <strong>PemaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
+            <p class="nowrap">{% if results.result_id %} <strong>PermaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
             
           </div>
           {% set bad_line_count = results.bad_line_items|length %}
@@ -50,7 +50,7 @@
               </tr>
             </thead>
             <tbody>
-        
+          
             {% for item in results.line_items if item.market == false %}
               <tr class="line-item-row">
                 <td>
@@ -102,24 +102,26 @@
               </tr>
             </tfoot>
           </table>
-          <table id="results" class="table table-condensed">
-            <thead>
-              <tr>
-                <th class="header">Fit</th>
-              </tr>
-            </thead>
-            <tbody>
-          {{ results.line_items.get(2048).typeName }}
+              
+          <div id="fits">
           {% for fit in results.fits %}
-                <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ fit.typeID }})"{% endif %}>
-                    <td><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }} ({{ results.line_items.get(fit.typeID).typeName }})</td></tr>
+            <div class='group'>
+                <h3{% if from_igb %} onclick="CCPEVE.showMarketDetails({{ fit.typeID }})"{% endif %}>
+                  <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }} ({{ results.line_items.get(fit.typeID).typeName }})
+                </h3>
+                <div>
+                  <ul>
                 {% for mod in fit.modules %}
-                  <tr class="line-item-row" {% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}><td style="padding-left: 30px;"><img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }} </td></tr>
+                    <li style="line-height: 32px; padding-left: 30px;"{% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}>
+                      <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }}
+                    </li>
                 {% endfor %}
+                  </ul>
+                </div>
+              </div>
           {% endfor %}
-          </tbody>
-          </table>
-          
+          </div>
+        
           <script>
             {% if results.result_id and not from_igb and not full_page%}
               window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');

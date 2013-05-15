@@ -50,6 +50,8 @@ SECRET_KEY = 'SET ME TO SOMETHING SECRET IN THE APP CONFIG!'
 REDIS_EMDR_DB = 0
 REDIS_SHOPPING_DB = 3
 
+REGIONS = json.loads(open('/home/http/public/fitshop/emdr/regions.json').read())
+
 emdr = redis.StrictRedis(host='localhost', port=6379, db=REDIS_EMDR_DB)
 fitshop = redis.StrictRedis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
 
