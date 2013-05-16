@@ -54,6 +54,12 @@
             </div>
           </div>
           {% endif %}
+          <ul class="nav nav-tabs" id="result_tabs">
+            <li><a href="#tab-inventory" data-toggle="tab">Inventory</a></li>
+            <li><a href="#tab-fits" data-toggle="tab">Fits</a></li>
+          </ul>
+          <div class="tab-content">
+          <div class="tab-pane active" id="tab-inventory">
           <table id="results" class="table table-condensed">
             <thead>
               <tr>
@@ -115,26 +121,33 @@
               </tr>
             </tfoot>
           </table>
-              
-          <div id="fits">
-          {% for fit in results.fits %}
-            <div class='group'>
-                <h3{% if from_igb %} onclick="CCPEVE.showMarketDetails({{ fit.typeID }})"{% endif %}>
-                  <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }} ({{ results.line_items.get(fit.typeID).typeName }})
-                </h3>
-                <div>
-                  <ul>
-                {% for mod in fit.modules %}
+          </div><!-- /#tab-inventory -->
+          <div class="tab-pane" id="tab-fits">
+          <div class="accordion" id="accordion">
+              {% for fit in results.fits %}
+              <div class="accordion-group">
+                <div style='line-height: 34px;' class="accordion-heading">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#collapse-{{ fit.typeID }}">
+                    <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }} ({{ results.line_items.get(fit.typeID).typeName }})
+                  </a>
+                </div>
+                <div id="collapse-{{ fit.typeID }}" class="accordion-body collapse">
+                  <div class="accordion-inner">
+                    <ul>
+                    {% for mod in fit.modules %}
                     <li style="line-height: 32px; padding-left: 30px;"{% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}>
                       <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }}
                     </li>
-                {% endfor %}
+                    {% endfor %}
                   </ul>
+                  </div>
                 </div>
               </div>
-          {% endfor %}
-          </div>
-          <hr>session auth debug<br>{% if session['auths'] %} {{ session['auths'] }} {% endif %}
+              {% endfor %}
+            </div>
+          
+          </div><!-- /#tab-fits -->
+          </div><!-- /#tab_content -->
           <script>
             {% if results.result_id and not from_igb and not full_page%}
               window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
