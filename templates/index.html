@@ -29,6 +29,8 @@ $(function() {
         paste_autosubmit: $("#paste-autosubmit").is(':checked'),
         save: $("#paste-save").is(':checked'),
         result_id: $('#working_id').val(),
+        auth_code: $('#auth_code').val(),
+
       }, 
       function(data) {
         result.val('');
@@ -38,6 +40,7 @@ $(function() {
         // Populate results
         $('#result_container').html(data);
         $('#working_id').val($('#return_id').val());
+	 $("#fits").accordion({header: "> div > h3", collapsible: true});
       }).error(function() {
         // Enable form components
         result.removeAttr("disabled").removeClass("disabled");
@@ -76,7 +79,8 @@ $(function() {
   toggle_buttons();
 
   $("#fits").accordion({header: "> div > h3", collapsible: true});
-  
+  $('#working_id').val($('#return_id').val());
+
 });
 </script>
 	
@@ -88,7 +92,6 @@ $(function() {
         <div class="span5">
           <h4>Quick Estimate</h4>
           <form action="{{ url_for('submit') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="result_form">
-            Working result: <input name="result_id" id="working_id" value="" />
             <textarea class="input-block-level" id="raw_textarea" name="raw_textarea" rows="20" placeholder="Copy fit here">[Imperial Navy Slicer, t1 guns?]
 
 Damage Control II
@@ -108,22 +111,35 @@ Small Capacitor Control Circuit I
 Small Capacitor Control Circuit I
 Small Processor Overclocking Unit I
 </textarea>
-            <input type="hidden" name="load_full" value="1"/>
-            <div class="controls">
-              <div id="buttons">
+            <input type="hidden" name="load_full" value="1"/><br />
+            Working result: <input name="result_id" id="working_id" value="" /><br />
+            Authorization Code: <input name="auth_code" id="auth_code" value="" />
+
+            <div class="controls form-inline clearfix">
+              <div id="buttons" class="pull-left">
                 <button type="submit" id="result_submit" class="btn btn-primary">Submit</button> 
                 <button type="reset" class="btn">Reset</button>
               </div>
+			  <div class="pull-right input-append">
+                <select class="span3" id="market">
+                  <option value='30000142'>Jita</option>
+                  <option value='30002187'>Amarr</option>
+                  <option value='30002659'>Dodixie</option>
+                  <option value='30002510'>Rens</option>
+                  <option value='30002053'>Hek</option>
+                </select>
+              </div>
             </div>
+			
           </form>
         </div>
         <div class="span7" id="result_container">
-          {% if error %}
+          {% block results %}          
+            {% if error %}
             <div class="alert alert-error">
-            <strong>{{_('error')}}:</strong> {{ error }}
-          </div>
-          {% endif %}
-          {% block results %}
+                <strong>{{_('error')}}:</strong> {{ error }}
+            </div>
+            {% endif %}
             <h4>What do I do?</h4>
             <p>
                Find something in Eve Online that you want to price check like a contract, cargo scan result, etc. Press <strong>CTRL + A, CTRL + C</strong>, then click on the lovely box to the left or above this and press <strong>CTRL + V</strong>. Submit and you should see a price breakdown of all the items.

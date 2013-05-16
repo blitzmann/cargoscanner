@@ -30,15 +30,11 @@ from flask import Flask, request, render_template, url_for, redirect, session, \
 from flask.ext.cache import Cache
 from flaskext.babel import Babel, format_decimal, format_timedelta
 
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Text,\
-    Float, Boolean, select, desc
-
 
 # configuration
 DEBUG = True
 TYPES = json.loads(open('/home/http/public/fitshop/data/types.json').read())
 USER_AGENT = 'FitShop/1.0'
-SQLALCHEMY_DATABASE_URI = 'sqlite:///home/http/public/fitshop/data/scans.db'
 CACHE_TYPE = 'redis'
 CACHE_KEY_PREFIX = 'fitshop'
 #CACHE_MEMCACHED_SERVERS = ['127.0.0.1:11211']
@@ -60,27 +56,9 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 app.config.from_pyfile('application.cfg', silent=True)
 
-engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'], convert_unicode=True)
-metadata = MetaData(bind=engine)
-scans = Table('Scans', metadata,
-    Column('Id', Integer, primary_key=True),
-    Column('Data', Text),
-    Column('Created', Integer),
-    Column('SellValue', Float),
-    Column('BuyValue', Float),
-    Column('Public', Boolean, default=True),
-)
-
-try:
-    engine.connect()
-    engine.execute("ALTER TABLE Scans ADD Public BOOLEAN")
-except:
-    pass
-
 locale.setlocale(locale.LC_ALL, '')
 
 babel = Babel(app)
-metadata.create_all(bind=engine)
 cache.init_app(app)
 
 # one instance per item
@@ -297,19 +275,14 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
     bad_lines = []
     fitID = None #current fit id
     
-    app.logger.debug("old fits: %s", fits)
-    
     fit_append = False # True if the modules need to be appended to fitting modules list, False is the fit is already in system (skip appending of modules)
     # add type to results list
     def _add_type(name, count, append2Fit=True, fitted=False):
-        #app.logger.debug("Append to fit: %s", append2Fit)
-
         if name == '':
             return False
         # get details from types file (loaded via json)
         details = app.config['TYPES'].get(name)
         if not details:
-            #app.logger.debug(name+" doesn't exist")
             return False # doesn't exist
         type_id = details['typeID']
         if type_id not in results:
@@ -320,8 +293,6 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
         return True
         
     def _add_fit(typeName, fitName, qty=1):
-        #app.logger.debug("Adding Fit")
-
         if typeName == '':
             return False
         # get details from types file (loaded via json)
@@ -332,14 +303,12 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
         fitID = str(type_id) + fitName
         # todo: possibly use hash of object to determine fits that are the same?
         if fitID not in fits:
-            app.logger.debug("FIT NOT FOUND, INSERTING")
             fit_append = True
             fits[fitID] = EveFit(type_id, fitName)
         else:
             # found fit, do not append modules
             fit_append = False
         fits[fitID].incr_count(qty)
-        #fits[fitID].incr_count(count)
         return True, fitID, fit_append
 
     for line in lines:
@@ -470,66 +439,63 @@ def submit():
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
-    prev_result = False
+    session['auths'] = session.get('auths') or {}
+    auth_input = request.form.get('auth_code', '')
+
+    new_result = True  # flag for new results
+    authorized = False # flag for authorization to modify
+    
     result_id = short_url.get_id(request.form.get('result_id', 'true'))
     results = load_result(result_id)
     
-    dic = {}
-    fits = {}
+    prev_types = {}
+    prev_fits = {}
+    auth = None
+    
+    '''
+        If results exists, this means we are trying to modify existing result.
+        Go through the motions of authenticating user. If no dice, return results
+    '''
     if results:
-        prev_result = True
+        new_result = False
         #create dict with EveType for old results
-        #app.logger.debug(results)
         for id, item in results['line_items'].iteritems():
-            #app.logger.debug(item)
             a = EveType(item['typeID'])
-            #app.logger.debug(a)
-            dic[item['typeID']] = a.from_dict(EveType, item)
+            prev_types[item['typeID']] = a.from_dict(EveType, item)
         for item in results['fits']:
-            #app.logger.debug(item)
             a = EveFit(item['typeID'])
-            #app.logger.debug(a)
-            fits[str(item['typeID'])+item['name']] = a.from_dict(EveFit, item)
-    
+            prev_fits[str(item['typeID'])+item['name']] = a.from_dict(EveFit, item)
+        auth = results['auth_hash']
+        if session.get('auths').get(request.form.get('result_id', 'true')) == auth or auth == auth_input:
+            authorized = True
+        if not authorized:
+            results.pop('auth_hash', None)
+            results['result_id'] = request.form.get('result_id', 'true')
+            return render_template('results.html', error='Not authorized', results=results,
+                from_igb=is_from_igb(), full_page=request.form.get('load_full'))
+
     # Parse input, send to variables
-    eve_types, fits, bad_lines = parse_paste_items(raw_paste, dic, fits)
+    eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits)
     
-   
     # Populate types with pricing data
     populate_market_values(eve_types.values())
-   
-    #populate_market_values(dic.values())
-    
-    #app.logger.debug(dic)
-    #app.logger.debug(eve_types)
-    #app.logger.debug(jsonpickle.encode(dic.get(2605)))
-    #app.logger.debug(jsonpickle.encode(eve_types.get(2605)))
-
 
     # calculate the totals
     totals = {'sell': 0, 'buy': 0, 'volume': 0}
     for t in eve_types.values():
         for total_key in ['sell', 'buy', 'volume']:
             totals[total_key] += t.pricing_info['totals'][total_key]
+
     #sort buy price
     sorted_eve_types = sorted(eve_types.values(), key=lambda k: -k.representative_value())
     sorted_fits = sorted(fits.values())
     displayable_line_items = {}
     display_fits = []
-    
 
     for eve_type in sorted_eve_types:
         displayable_line_items[str(eve_type.type_id)] = eve_type.to_dict()
     for fit in sorted_fits:
         display_fits.append(fit.to_dict())  
-        
-    #app.logger.debug("fits: %s", display_fits)
-    #app.logger.debug("fits: %s", displayable_line_items)
-    #app.logger.debug("fits: %s", pprint.pprint(display_fits[0]))
-    #app.logger.debug(type(displayable_line_items))
-    
-  
-    #app.logger.debug("no previous results found, creating new result dict")
     
     results = {
         'from_igb': is_from_igb(),
@@ -539,16 +505,19 @@ def submit():
         'fits': display_fits, #dict of fits
         'created': time.time(),
         'raw_paste': raw_paste,
+        'auth_hash': short_hash(6) if new_result else auth
     }
     
     if len(sorted_eve_types) > 0:
         if session['save'] == 'true':
-            result_id = save_result(results, public=True, result_id=(result_id if prev_result else False))
+            result_id = save_result(results, public=True, result_id=(result_id if not new_result else False))
             results['result_id'] = short_url.get_code(result_id)
-            results['auth_hash'] = short_hash(6)
+            session['auths'][results['result_id']] = results['auth_hash']
         else:
-            result_id = save_result(results, public=False, result_id=(result_id if prev_result else False))
+            result_id = save_result(results, public=False, result_id=(result_id if not new_result else False))
     
+    if not new_result:
+        results.pop('auth_hash', None)
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
@@ -561,13 +530,15 @@ def display_result(result_id):
     status = 200
     if results:
         results['result_id'] = result_id
+        results.pop('auth_hash', None)
+
         return render_template('results.html', results=results,
             error=error, from_igb=is_from_igb(), full_page=True), status
     else:
         return render_template('index.html', error="Resource Not Found",
             from_igb=is_from_igb(), full_page=True), 404
 
-
+'''
 @app.route('/latest/', defaults={'limit': 20})
 @app.route('/latest/limit/<int:limit>')
 def latest(limit):
@@ -592,7 +563,7 @@ def latest(limit):
         cache.set("latest:%s" % limit, result_list, timeout=60)
 
     return render_template('latest.html', listing=result_list)
-
+'''
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

@@ -1,8 +1,21 @@
           {% if full_page %}{% extends 'index.html' %}{% endif -%}
           {% block results %}
+          
+          {% if error %}
+            <div class="alert alert-error">
+            <strong>{{_('error')}}:</strong> {{ error }}
+          </div>
+          {% endif %}
+          
           <div>
+            {% if results.auth_hash %}
+            <div class="alert alert-info">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <strong>Auth Code:</strong> {{ results.auth_hash }}<br />If you want to make changes to this result after your session expires, you must use this code to gain access.
+            </div>
+            {% endif %} 
             {% if results.result_id %}<input  type='hidden' id='return_id' value='{{results.result_id}}' />{% endif %}
-            <p>Result {% if results.result_id %}#{{ results.result_id }} ({{ results.result_id|convert_id }}) {% endif %} HASH {{ results.auth_hash }} <small> {% if results.created %}<small>created {{ results.created|relative_time}}</small> {% endif %} 
+            <p>Result {% if results.result_id %}#{{ results.result_id }} ({{ results.result_id|convert_id }}) {% endif %}<small> {% if results.created %}<small>created {{ results.created|relative_time}}</small> {% endif %} 
             {% if results.raw_paste %}<a href="#raw-result-modal" data-toggle="modal">View Raw</a>{% endif%}</small>
             </p>
             {% if results.raw_paste %}
@@ -121,7 +134,7 @@
               </div>
           {% endfor %}
           </div>
-        
+          <hr>session auth debug<br>{% if session['auths'] %} {{ session['auths'] }} {% endif %}
           <script>
             {% if results.result_id and not from_igb and not full_page%}
               window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
