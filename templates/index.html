@@ -29,6 +29,7 @@ $(function() {
         paste_autosubmit: $("#paste-autosubmit").is(':checked'),
         save: $("#paste-save").is(':checked'),
         result_id: $('#working_id').val(),
+        trade_region: $('#trade_region').val(),
         auth_code: $('#auth_code').val(),
 
       }, 
@@ -121,16 +122,14 @@ Small Processor Overclocking Unit I
                 <button type="reset" class="btn">Reset</button>
               </div>
 			  <div class="pull-right input-append">
-                <select class="span3" id="market">
-                  <option value='30000142'>Jita</option>
-                  <option value='30002187'>Amarr</option>
-                  <option value='30002659'>Dodixie</option>
-                  <option value='30002510'>Rens</option>
-                  <option value='30002053'>Hek</option>
+                <select class="span2" id="trade_region">
+                  <option value="">Market Regions</option>
+                  {% for id, name in regions.iteritems(): %}
+                  <option value="{{ id }}"{% if session.region_id == id: %} selected="selected"{% endif %}>{{ name }}</option>
+                  {% endfor %}
                 </select>
               </div>
             </div>
-			
           </form>
         </div>
         <div class="span7" id="result_container">

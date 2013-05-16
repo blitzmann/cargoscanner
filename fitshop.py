@@ -25,7 +25,7 @@ from short_hash import short_hash
 import pickle
 
 from flask import Flask, request, render_template, url_for, redirect, session, \
-    send_from_directory
+    send_from_directory, abort
 
 from flask.ext.cache import Cache
 from flaskext.babel import Babel, format_decimal, format_timedelta
@@ -219,16 +219,16 @@ def bpc_count(bad_lines):
 def get_locale():
     return request.accept_languages.best_match(['en'])
 
-def emdr_type_key(type_id, region_id=10000002):
+def emdr_type_key(type_id, region_id):
     return "emdr-1-%s-%s" % (region_id, type_id)
 
-def get_cached_values(eve_types):
+def get_cached_values(eve_types, region_id):
     "Get cached pricing data of eve_types from EMDR"
     "returns: {type_id: {sell: [...], buy: [...]}}"
     
     found = {}
     for eve_type in eve_types:
-        key = emdr_type_key(eve_type.type_id)
+        key = emdr_type_key(eve_type.type_id, region_id)
         prices = simplejson.loads(emdr.get(key))
         if prices:
             found[eve_type.type_id] = prices['orders']
@@ -359,7 +359,7 @@ def is_from_igb():
     return request.headers.get('User-Agent', '').find("EVE-IGB") != -1
 
 
-def get_invalid_values(eve_types):
+def get_invalid_values(eve_types, region=None):
     "For each item that is not on the market, set pricing info to 0"
     invalid_items = {}
     for eve_type in eve_types:
@@ -403,7 +403,7 @@ def get_componentized_values(eve_types):
     return componentized_items
 
 
-def populate_market_values(eve_types, methods=None):
+def populate_market_values(eve_types, methods=None, region='10000002'):
     unpopulated_types = list(eve_types)
 
     if methods is None:
@@ -412,7 +412,7 @@ def populate_market_values(eve_types, methods=None):
         if len(unpopulated_types) == 0:
             break
         # returns a dict with {type_id: pricing_info}
-        prices = pricing_method(unpopulated_types)
+        prices = pricing_method(unpopulated_types, region)
         new_unpopulated_types = []
         for eve_type in unpopulated_types:
             if eve_type.type_id in prices:
@@ -441,44 +441,46 @@ def submit():
     session['save'] = request.form.get('save', 'true')
     session['auths'] = session.get('auths') or {}
     auth_input = request.form.get('auth_code', '')
+    session['region_id'] = request.form.get('trade_region', '10000002')
 
+    if session['region_id'] not in REGIONS.keys():
+        session['region_id'] = '10000002'
+    
     new_result = True  # flag for new results
     authorized = False # flag for authorization to modify
-    
+
     result_id = short_url.get_id(request.form.get('result_id', 'true'))
     results = load_result(result_id)
-    
-    prev_types = {}
-    prev_fits = {}
-    auth = None
-    
+
     '''
         If results exists, this means we are trying to modify existing result.
-        Go through the motions of authenticating user. If no dice, return results
+        Go through the motions of authenticating user, and return return some variables
     '''
     if results:
+        auth = results['auth_hash']
+        if (session.get('auths').get(request.form.get('result_id', 'true')) != auth and auth_input != auth):
+            app.logger.debug(session.get('auths').get(request.form.get('result_id', 'true')))
+            app.logger.debug(results['auth_hash'])
+            results.pop('auth_hash', None)
+            results['result_id'] = request.form.get('result_id', 'true')
+            return render_template('results.html', error='Not authorized', results=results,
+                from_igb=is_from_igb(), full_page=request.form.get('load_full'))
+        
         new_result = False
-        #create dict with EveType for old results
+        prev_types = {}
+        prev_fits = {}
         for id, item in results['line_items'].iteritems():
             a = EveType(item['typeID'])
             prev_types[item['typeID']] = a.from_dict(EveType, item)
         for item in results['fits']:
             a = EveFit(item['typeID'])
             prev_fits[str(item['typeID'])+item['name']] = a.from_dict(EveFit, item)
-        auth = results['auth_hash']
-        if session.get('auths').get(request.form.get('result_id', 'true')) == auth or auth == auth_input:
-            authorized = True
-        if not authorized:
-            results.pop('auth_hash', None)
-            results['result_id'] = request.form.get('result_id', 'true')
-            return render_template('results.html', error='Not authorized', results=results,
-                from_igb=is_from_igb(), full_page=request.form.get('load_full'))
-
-    # Parse input, send to variables
-    eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits)
+        eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits)
+    else:
+        eve_types, fits, bad_lines = parse_paste_items(raw_paste)
     
     # Populate types with pricing data
-    populate_market_values(eve_types.values())
+    populate_market_values(eve_types.values(), region=session['region_id'])
 
     # calculate the totals
     totals = {'sell': 0, 'buy': 0, 'volume': 0}
@@ -532,11 +534,11 @@ def display_result(result_id):
         results['result_id'] = result_id
         results.pop('auth_hash', None)
 
-        return render_template('results.html', results=results,
+        return render_template('results.html', regions=REGIONS, results=results,
             error=error, from_igb=is_from_igb(), full_page=True), status
     else:
         return render_template('index.html', error="Resource Not Found",
-            from_igb=is_from_igb(), full_page=True), 404
+            regions=REGIONS, from_igb=is_from_igb(), full_page=True), 404
 
 '''
 @app.route('/latest/', defaults={'limit': 20})
@@ -568,7 +570,7 @@ def latest(limit):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     "Index. Renders HTML."
-    return render_template('index.html', from_igb=is_from_igb())
+    return render_template('index.html', regions = REGIONS, dfrom_igb=is_from_igb())
 
 
 @app.route('/legal')
