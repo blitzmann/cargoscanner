@@ -498,13 +498,14 @@ def submit():
         displayable_line_items[str(eve_type.type_id)] = eve_type.to_dict()
     for fit in sorted_fits:
         display_fits.append(fit.to_dict())  
-    
+    app.logger.debug(REGIONS[session['region_id']])
     results = {
         'from_igb': is_from_igb(),
         'totals': totals,
         'bad_line_items': bad_lines,
         'line_items': displayable_line_items, # dict of inventory
         'fits': display_fits, #dict of fits
+        'region_name':  REGIONS[session['region_id']],
         'created': time.time(),
         'raw_paste': raw_paste,
         'auth_hash': short_hash(6) if new_result else auth

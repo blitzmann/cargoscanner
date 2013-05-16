@@ -33,7 +33,7 @@
               </div>
             </div>
             {% endif%}
-            <h4><span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp;&nbsp; <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value</small></span></h4>
+            <h4><span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp; <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value in</small> {{ results.region_name }}</span></h4>
             <p class="nowrap">{% if results.result_id %} <strong>PermaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
             
           </div>
