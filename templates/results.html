@@ -2,8 +2,8 @@
           {% block results %}
           
           {% if error %}
-            <div class="alert alert-error">
-            <strong>{{_('error')}}:</strong> {{ error }}
+          <div class="alert alert-error">
+            <strong>ERROR:</strong> {{ error }}
           </div>
           {% endif %}
           
@@ -142,5 +142,16 @@
             {% if results.result_id and not from_igb and not full_page%}
               window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
             {% endif %}
+            function result_functions(){
+              {% if results.result_id not in session.auths %}
+                $(function() {  
+                  $("#result_form").hide();
+                  $("#auth_form").show();
+                });
+              {% endif %}
+            }
             
+            result_functions();
+            
+          </script>
           {% endblock %}

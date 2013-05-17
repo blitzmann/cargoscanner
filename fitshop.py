@@ -26,6 +26,7 @@ import pickle
 
 from flask import Flask, request, render_template, url_for, redirect, session, \
     send_from_directory, abort
+import flask_sijax
 
 from flask.ext.cache import Cache
 from flaskext.babel import Babel, format_decimal, format_timedelta
@@ -430,6 +431,17 @@ def populate_market_values(eve_types, methods=None, region='10000002'):
         unpopulated_types = new_unpopulated_types
 
     return eve_types
+ 
+@app.route('/auth-ajax', methods=['POST'])
+def auth(): 
+    result_id = short_url.get_id(request.form.get('result_id', 'true'))
+    results = load_result(result_id)
+    if results:
+        auth = results['auth_hash']
+        auth_input = request.form.get('auth_input', '')
+        app.logger.debug("AUTH()")
+
+    return str(True)
     
 @app.route('/shop', methods=['POST'])
 def submit():

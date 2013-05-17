@@ -15,6 +15,7 @@
 {{ super() }}
 <script>
 $(function() {
+  $("#auth_form").hide();
   $("#result_form").submit(function() {
     var result = $("#raw_textarea");
     var result_submit = $("#result_submit");
@@ -46,6 +47,39 @@ $(function() {
         // Enable form components
         result.removeAttr("disabled").removeClass("disabled");
         result_submit.removeAttr("disabled").removeClass("disabled");
+        alert("Server responded with an error.");
+      });
+    return false;
+  });
+  
+  $("#auth_form").submit(function() {
+    var auth_input = $("#auth_input");
+    var auth_submit = $("#auth_submit");
+    // Disable form components
+    auth_input.attr("disabled", "disabled").addClass("disabled");
+    auth_submit.attr("disabled", "disabled").addClass("disabled");
+
+    $.post("{{ url_for('auth') }}",
+      {
+        auth_input: auth_input.val(),
+        result_id: $('#working_id2').val(),
+      }, 
+      function(data) {
+        auth_input.val('');
+        // Enable form components
+        auth_input.removeAttr("disabled").removeClass("disabled");
+        auth_submit.removeAttr("disabled").removeClass("disabled");
+        // Populate results
+        if (data == 'True') {
+            $("#auth_form").hide();
+            $("#result_form").show();
+            }
+        else {
+            alert ("Not authorized!"); }
+      }).error(function() {
+        // Enable form components
+        auth_input.removeAttr("disabled").removeClass("disabled");
+        auth_submit.removeAttr("disabled").removeClass("disabled");
         alert("Server responded with an error.");
       });
     return false;
@@ -87,8 +121,6 @@ $(function() {
   });
   if($("#modify-result").is(":checked")) {    
         $('#working_id').val($('#return_id').text()); }
-
-  $("#fits").accordion({header: "> div > h3", collapsible: true});
 });
 </script>
 	
@@ -138,13 +170,24 @@ Small Processor Overclocking Unit I
               </div>
             </div>
           </form>
+
+        <form action="{{ url_for('auth') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="auth_form">
+          NOT AUTHORIZED
+          Working result: <input name="result_id" id="working_id2" value="" /><br />
+          Authorization Code: <input name="auth_input" id="auth_input" value="" />
+          
+          <div class="controls form-inline clearfix">
+            <div id="auth_button" class="pull-left">
+              <button type="submit" id="auth_submit" class="btn btn-primary">Submit</button> 
+            </div>
+          </div>
+        </form>
         </div>
-     
         <div class="span7" id="result_container">
           {% block results %}          
             {% if error %}
             <div class="alert alert-error">
-                <strong>{{_('error')}}:</strong> {{ error }}
+                <strong>ERROR:</strong> {{ error }}
             </div>
             {% endif %}
             <h4>What do I do?</h4>
