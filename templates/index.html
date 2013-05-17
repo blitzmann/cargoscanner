@@ -3,10 +3,10 @@
           <li class="dropdown">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown">Options <b class="caret"></b></a>
             <ul class="dropdown-menu">
-              <li><label style="margin-left:10px;" class="checkbox"><input id="hide-buttons" type="checkbox"{% if session['hide_buttons'] == 'true' %} checked{% endif%}> Hide buttons</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-autosubmit" type="checkbox"{% if session['paste_autosubmit'] == 'true' %} checked{% endif%}> Autosubmit on paste</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-save" type="checkbox"{% if session['save'] != 'false' %} checked{% endif%}> Save</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="pass-protect" type="checkbox"{% if session['protect'] != 'false' %} checked{% endif%}> Password Protect Shopping List</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="hide-buttons" type="checkbox"{% if session['hide_buttons'] == 'true' %} checked{% endif %}> Hide buttons</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-autosubmit" type="checkbox"{% if session['paste_autosubmit'] == 'true' %} checked{% endif %}> Autosubmit on paste</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-save" type="checkbox"{% if session['save'] != 'false' %} checked{% endif %}> Save</label></li>
+              <li><label style="margin-left:10px;" class="checkbox"><input id="modify-result" type="checkbox" checked>Modify result</label></li>
 
             </ul>
           </li>
@@ -40,7 +40,7 @@ $(function() {
         result_submit.removeAttr("disabled").removeClass("disabled");
         // Populate results
         $('#result_container').html(data);
-        $('#working_id').val($('#return_id').val());
+        $('#working_id').val($('#return_id').text());
 	 $("#fits").accordion({header: "> div > h3", collapsible: true});
       }).error(function() {
         // Enable form components
@@ -50,7 +50,7 @@ $(function() {
       });
     return false;
   });
-
+  
   $("#raw_textarea").bind('paste', function(e) {
     if($('#paste-autosubmit:checked').length > 0) {
       setTimeout(function() {
@@ -79,9 +79,16 @@ $(function() {
   {% endif %}
   toggle_buttons();
 
-  $("#fits").accordion({header: "> div > h3", collapsible: true});
-  $('#working_id').val($('#return_id').val());
+  $("#modify-result").click(function() {
+    if($(this).is(":checked")) {    
+        $('#working_id').val($('#return_id').text()); }
+    else {
+        $('#working_id').val(''); }
+  });
+  if($("#modify-result").is(":checked")) {    
+        $('#working_id').val($('#return_id').text()); }
 
+  $("#fits").accordion({header: "> div > h3", collapsible: true});
 });
 </script>
 	

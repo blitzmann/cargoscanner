@@ -14,27 +14,17 @@
                 <strong>Auth Code:</strong> {{ results.auth_hash }}<br />If you want to make changes to this result after your session expires, you must use this code to gain access.
             </div>
             {% endif %} 
-            {% if results.result_id %}<input  type='hidden' id='return_id' value='{{results.result_id}}' />{% endif %}
-            <p>Result {% if results.result_id %}#{{ results.result_id }} ({{ results.result_id|convert_id }}) {% endif %}<small> {% if results.created %}<small>created {{ results.created|relative_time}}</small> {% endif %} 
-            {% if results.raw_paste %}<a href="#raw-result-modal" data-toggle="modal">View Raw</a>{% endif%}</small>
+            <p>
+                Result {% if results.result_id %}<strong><span id="return_id">{{ results.result_id }}</span></strong> {% endif %}
+                <small> {% if results.modified %}<small> {% if results.auth_hash %} created {% else %} modified {% endif %} {{ results.modified|relative_time}}</small> {% endif %} </small>
+                <span class="pull-right">{% if results.result_id %} <strong>PermaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</span>
             </p>
-            {% if results.raw_paste %}
 
-            <div id="raw-result-modal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="raw-result-modal" aria-hidden="true">
-              <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-                <h3>Raw Pasted Text</h3>
-              </div>
-              <div class="modal-body">
-                <textarea class="input-block-level" rows="10">{{ results.raw_paste }}</textarea>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">Close</button>
-              </div>
-            </div>
-            {% endif%}
-            <h4><span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp; <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value in</small> {{ results.region_name }}</span></h4>
-            <p class="nowrap">{% if results.result_id %} <strong>PermaLink</strong>: <a href="{{ url_for('display_result', result_id=results.result_id) }}">{{ url_for('display_result', result_id=results.result_id, _external=True) }}</a> {% endif %}</p>
+            <h4>
+                <span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp; 
+                <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value in <strong>{{ results.region_name }}</strong></small></span>
+            </h4>
+            
             
           </div>
           {% set bad_line_count = results.bad_line_items|length %}
