@@ -62,7 +62,7 @@ $(function() {
     $.post("{{ url_for('auth') }}",
       {
         auth_input: auth_input.val(),
-        result_id: $('#working_id2').val(),
+        result_id: $('#working_id').val(),
       }, 
       function(data) {
         auth_input.val('');
@@ -152,7 +152,6 @@ Small Processor Overclocking Unit I
 </textarea>
             <input type="hidden" name="load_full" value="1"/><br />
             Working result: <input name="result_id" id="working_id" value="" /><br />
-            Authorization Code: <input name="auth_code" id="auth_code" value="" />
 
             <div class="controls form-inline clearfix">
               <div id="buttons" class="pull-left">

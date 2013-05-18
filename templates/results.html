@@ -8,12 +8,6 @@
           {% endif %}
           
           <div>
-            {% if results.auth_hash %}
-            <div class="alert alert-info">
-                <button type="button" class="close" data-dismiss="alert">&times;</button>
-                <strong>Auth Code:</strong> {{ results.auth_hash }}<br />If you want to make changes to this result after your session expires, you must use this code to gain access.
-            </div>
-            {% endif %} 
             <p>
                 Result {% if results.result_id %}<strong><span id="return_id">{{ results.result_id }}</span></strong> {% endif %}
                 <small> {% if results.modified %}<small> {% if results.auth_hash %} created {% else %} modified {% endif %} {{ results.modified|relative_time}}</small> {% endif %} </small>
@@ -24,8 +18,12 @@
                 <span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp; 
                 <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value in <strong>{{ results.region_name }}</strong></small></span>
             </h4>
-            
-            
+            {% if results.auth_hash %}
+            <div class="alert alert-info">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <strong>Auth Code:</strong> {{ results.auth_hash }}<br />If you want to make changes to this result after your session expires, you must use this code to gain access.
+            </div>
+            {% endif %} 
           </div>
           {% set bad_line_count = results.bad_line_items|length %}
           {% if bad_line_count > 0 %}

@@ -8,8 +8,7 @@
     every time fit quantiry is updated, it modifies the EveType for that item to show new quantity (perhaps allow custom qty for individuel items as well)
 """
 
-import json
-import simplejson
+import simplejson as json
 import urllib2
 import time
 import datetime
@@ -230,7 +229,7 @@ def get_cached_values(eve_types, region_id):
     found = {}
     for eve_type in eve_types:
         key = emdr_type_key(eve_type.type_id, region_id)
-        prices = simplejson.loads(emdr.get(key))
+        prices = json.loads(emdr.get(key))
         if prices:
             found[eve_type.type_id] = prices['orders']
     
@@ -434,12 +433,18 @@ def populate_market_values(eve_types, methods=None, region='10000002'):
  
 @app.route('/auth-ajax', methods=['POST'])
 def auth(): 
+    result_id_code = request.form.get('result_id', 'true')
     result_id = short_url.get_id(request.form.get('result_id', 'true'))
     results = load_result(result_id)
+
     if results:
         auth = results['auth_hash']
         auth_input = request.form.get('auth_input', '')
-        app.logger.debug("AUTH()")
+        if (session.get('auths').get(result_id_code) != auth and auth_input != auth):
+            return str(False)
+    
+    session['auths'][result_id_code] = auth
+    session.modified = True
 
     return str(True)
     
@@ -451,7 +456,6 @@ def submit():
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
     session['auths'] = session.get('auths') or {}
-    auth_input = request.form.get('auth_code', '')
     session['region_id'] = request.form.get('trade_region', '10000002')
 
     if session['region_id'] not in REGIONS.keys():
@@ -469,7 +473,7 @@ def submit():
     '''
     if results:
         auth = results['auth_hash']
-        if (session.get('auths').get(request.form.get('result_id', 'true')) != auth and auth_input != auth):
+        if (session.get('auths').get(request.form.get('result_id', 'true')) != auth):
             results.pop('auth_hash', None)
             results['result_id'] = request.form.get('result_id', 'true')
             return render_template('results.html', error='Not authorized', results=results,
