@@ -447,7 +447,11 @@ def auth():
     session.modified = True
 
     return str(True)
-    
+
+@app.route('/password')
+def request_pass():
+    return render_template('password.html')
+
 @app.route('/shop', methods=['POST'])
 def submit():
     "Main function. So direty work of submission and returns results"
