@@ -130,7 +130,6 @@ $(function() {
     <div class="container">
       <div class="row">
         <div class="span5">
-          <h4>Quick Estimate</h4>
           <form action="{{ url_for('submit') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="result_form">
             <textarea class="input-block-level" id="raw_textarea" name="raw_textarea" rows="20" placeholder="Copy fit here">[Imperial Navy Slicer, t1 guns?]
 
@@ -171,15 +170,14 @@ Small Processor Overclocking Unit I
             </div>
           </form>
 
-        <form action="{{ url_for('auth') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="auth_form">
-          NOT AUTHORIZED
-          Working result: <input name="result_id" id="working_id2" value="" /><br />
-          Authorization Code: <input name="auth_input" id="auth_input" value="" />
+        <form action="{{ url_for('auth') }}" method="post" style="margin-bottom:10px;" class="well well-small centered" id="auth_form">
+          <h3>Authorization</h3>
+          <p>Please enter the authorization code below to be able to modify result</p>
+          
+          <input name="auth_input" id="auth_input" class="span2 search-query" value="" maxlength="8" />
           
           <div class="controls form-inline clearfix">
-            <div id="auth_button" class="pull-left">
               <button type="submit" id="auth_submit" class="btn btn-primary">Submit</button> 
-            </div>
           </div>
         </form>
         </div>
