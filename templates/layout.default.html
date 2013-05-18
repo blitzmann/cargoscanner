@@ -77,6 +77,7 @@
         <ul class="nav">
           {% block extra_menu_items %}{% endblock %}
           <li><a href="#help-modal" data-toggle="modal">Help</a></li>
+          <li><a href="http://blitzmann.it.cx/lpStore/">lpStore</a></li>
           <li><a href="http://www.evepraisal.com/">Evepraisal</a></li>
         </ul>
       </div><!-- /.navbar-inner -->
@@ -84,7 +85,14 @@
 
     <div id="help-modal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="raw_paste_modal" aria-hidden="true">
       <div class="modal-body">
-                <h4>What is this?</h4>        <p>This is a tool for Eve Online aimed at being able to quickly price check items. </p>        <h4>Why would I use this?</h4>        <p>You scan a drake full of original blueprints that you weren't able to quickly see because you sorting through the tabacco, spirits, exotic dancers, T1 planetary comodaties, livestock, garbage, scrap metal, and other random junk you're likely to find in the cargo hold. This tool will allow you to quickly see what's valuable and a rough estimate of how valueable everything is so the few seconds that you have to decide to commit won't be wasted messing messing around with eve's UI. This tool also happens to be pretty decent at doing quick price checks. It currently is known to work with cargo scan results and EFT-formatted blocks.</p>        <h4>How are prices calculated?</h5>        <p>Prices are pulled from <a href="http://eve-central.com/">Eve-Central.com</a> and (as a backup) <a href="http://eve-marketdata.com/">Eve-Marketdata.com</a>. The pricing is limited to the following regions: Forge, Metropolis, Heimatar, Sinq Laison region, Domain. This is because each of these regions has a large market hub. Capital ship prices are set by the sum of their component parts.</p>        <h4>Caveats/Known Issues</h4>        <ul>          <li>There's no reliable way to get prices of blueprint copies (BPCs). Due to this, I don't even try to guess a price for them.</li>        </ul>        <h4>Problems/More Questions?</h4>        <p>Feel free to send me an in-game mail. My character name is <a href="https://gate.eveonline.com/Profile/Magerawr" target="_blank">Magerawr</a>.</p>
+        <h4>What is this?</h4>        
+        <p>This tool aims to make shopping for your fittings easier than before. </p>
+        <h4>Why would I use this?</h4>
+        <p>"I need to buy three Slicers of this fit, two Slicers of that fit, 20 plexing Merlins, five real Merlins, a Thorax, and two Drakes". How many times have you thought something like this? It is common for those who have a bloodlust and go through ships quickly, and restocking ships and fittings can be a hassle. I tried many EVE "Shopping Lists" which were both overly complicated and didn't allow the functionality that I needed. So i took a shot at it myself. With fitShop, you can easily upload your fittings and have a handy shopping list displayed, complete with current, up-to-date prices.</p>
+        <h4>How are prices calculated?</h5>
+        <p>Prices are pulled from the <a href="https://eve-market-data-relay.readthedocs.org/en/latest/" target="_blank">EMDR network</a> via <a href="https://github.com/blitzmann/emdr-py" target="_blank">emdr-py</a>, another project of mine. We take the 5th percentile price and use that in our calculations. The pricing is limited to a select number of regions: The Forge, Metropolis, Heimatar, Sinq Laison, Domain. </p>
+        <h4>Contact</h4>
+        <p>Have a feature idea? Have a problem? Want to know more about how it works? Feel free to send me an in-game mail. My character name is <a href="https://gate.eveonline.com/Profile/Sable Blitzmann" target="_blank">Sable Blitzmann</a>. The source code is also available on <a href="https://github.com/blitzmann/fitShop">github</a></p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">Close</button>
@@ -96,7 +104,7 @@
 
     {% block footer %}
     <footer>
-      <p class="footer">Created by <a href="https://gate.eveonline.com/Profile/Magerawr" target="_blank">Magerawr</a>. Feel free to send me questions, suggestions or donations of ISK. Source is available on <a href="https://github.com/sudorandom/cargoscanner">github</a>. <br /> All <a href="http://www.evepraisal.com/legal">Eve Related Materials</a> are property of CCP Games. See <a href="http://www.evepraisal.com/legal">Legal Notice</a></p>
+      <p class="footer">Created by <a href="https://gate.eveonline.com/Profile/Sable Blitzmann" target="_blank">Sable Blitzmann</a>, based on <a href="http://www.evepraisal.com/" target="_blank">Evepraisal</a> by <a href="https://gate.eveonline.com/Profile/Sable Blitzmann" target="_blank">Magerawr</a>. Feel free to send me questions, suggestions or donations of ISK. <br /> Source is available on <a href="https://github.com/blitzmann/fitShop">github</a>. All <a href="legal">Eve Related Materials</a> are property of CCP Games. See <a href="legal">Legal Notice</a></p>
     </footer>
     {% endblock %}
   </body>
