@@ -48,8 +48,8 @@ REDIS_SHOPPING_DB = 3
 
 REGIONS = json.loads(open('/home/http/public/fitshop/emdr/regions.json').read())
 
-emdr = redis.StrictRedis(host='localhost', port=6379, db=REDIS_EMDR_DB)
-fitshop = redis.StrictRedis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
+emdr = redis.Redis(host='localhost', port=6379, db=REDIS_EMDR_DB)
+fitshop = redis.Redis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
 
 cache = Cache()
 app = Flask(__name__)
@@ -245,8 +245,8 @@ def save_result(result, public=True, result_id=False):
             result_id = int(result_id)
         except:
             result_id = fitshop.incr("fitshop_id")
-    
-    fitshop.set("results:%s" % result_id, data)
+    # Set result to expire in 30 days
+    fitshop.setex("results:%s" % result_id, data, 2592000)
 
     return result_id
 
@@ -543,6 +543,8 @@ def submit():
 
 @app.route('/shop/<string:result_id>', methods=['GET'])
 def display_result(result_id):
+    # Init's auth dict
+    session['auths'] = session.get('auths') or {}
     id = short_url.get_id(result_id)
     results = load_result(id)
     error = None
