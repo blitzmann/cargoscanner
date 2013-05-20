@@ -440,10 +440,9 @@ def auth():
     if results:
         auth = results['auth_hash']
         auth_input = request.form.get('auth_input', '')
-        if (session.get('auths').get(result_id_code) != auth and auth_input != auth):
+        if (result_id_code not in session.get('auths') and auth_input != auth):
             return str(False)
-    
-    session['auths'][result_id_code] = auth
+    session.get('auths').add(result_id_code)
     session.modified = True
 
     return str(True)
@@ -459,7 +458,7 @@ def submit():
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
-    session['auths'] = session.get('auths') or {}
+    session['auths'] = set(session.get('auths') or [])
     session['region_id'] = request.form.get('trade_region', '10000002')
 
     if session['region_id'] not in REGIONS.keys():
@@ -477,7 +476,7 @@ def submit():
     '''
     if results:
         auth = results['auth_hash']
-        if (session.get('auths').get(request.form.get('result_id', 'true')) != auth):
+        if (request.form.get('result_id', 'true') not in session.get('auths')):
             results.pop('auth_hash', None)
             results['result_id'] = request.form.get('result_id', 'true')
             return render_template('results.html', error='Not authorized', results=results,
@@ -531,7 +530,7 @@ def submit():
         if session['save'] == 'true':
             result_id = save_result(results, public=True, result_id=(result_id if not new_result else False))
             results['result_id'] = short_url.get_code(result_id)
-            session['auths'][results['result_id']] = results['auth_hash']
+            session['auths'].add(results['result_id'])
         else:
             result_id = save_result(results, public=False, result_id=(result_id if not new_result else False))
     
@@ -544,7 +543,7 @@ def submit():
 @app.route('/shop/<string:result_id>', methods=['GET'])
 def display_result(result_id):
     # Init's auth dict
-    session['auths'] = session.get('auths') or {}
+    session['auths'] = set(session.get('auths') or [])
     id = short_url.get_id(result_id)
     results = load_result(id)
     error = None

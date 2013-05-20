@@ -32,7 +32,6 @@ $(function() {
         result_id: $('#working_id').val(),
         trade_region: $('#trade_region').val(),
         auth_code: $('#auth_code').val(),
-
       }, 
       function(data) {
         result.val('');
@@ -42,7 +41,7 @@ $(function() {
         // Populate results
         $('#result_container').html(data);
         $('#working_id').val($('#return_id').text());
-	 $("#fits").accordion({header: "> div > h3", collapsible: true});
+	    $("#fits").accordion({header: "> div > h3", collapsible: true});
       }).error(function() {
         // Enable form components
         result.removeAttr("disabled").removeClass("disabled");
@@ -119,18 +118,20 @@ $(function() {
     else {
         $('#working_id').val(''); }
   });
-  if($("#modify-result").is(":checked")) {    
+  
+  if ($("#modify-result").is(":checked")) {    
         $('#working_id').val($('#return_id').text()); }
 });
 </script>
-	
+
 {% endblock %}
 {% block body %}
-
+	
     <div class="container">
       <div class="row">
         <div class="span5">
           <form action="{{ url_for('submit') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="result_form">
+            <input type="hidden" id="working_id" name="working_id" value="{% if results and results.result_id %}{{ results.result_id }}{% endif %}" />
             <textarea class="input-block-level" id="raw_textarea" name="raw_textarea" rows="20" placeholder="Copy fit here">[Imperial Navy Slicer, t1 guns?]
 
 Damage Control II
@@ -150,13 +151,10 @@ Small Capacitor Control Circuit I
 Small Capacitor Control Circuit I
 Small Processor Overclocking Unit I
 </textarea>
-            <input type="hidden" name="load_full" value="1"/><br />
-            Working result: <input name="result_id" id="working_id" value="" /><br />
-
             <div class="controls form-inline clearfix">
               <div id="buttons" class="pull-left">
                 <button type="submit" id="result_submit" class="btn btn-primary">Submit</button> 
-                <button type="reset" class="btn">Reset</button>
+                <button type="reset" class="btn">Reset</button> 
               </div>
 			  <div class="pull-right input-append">
                 <select class="span2" id="trade_region">
@@ -178,6 +176,8 @@ Small Processor Overclocking Unit I
           <div class="controls form-inline clearfix">
               <button type="submit" id="auth_submit" class="btn btn-primary">Submit</button> 
           </div>
+          <hr />
+              <button type="submit" id="new_submit" class="btn btn-primary">Or, Copy Result to New Record</button> 
         </form>
         </div>
         <div class="span7" id="result_container">
