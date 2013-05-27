@@ -26,6 +26,7 @@ $(function() {
     $.post("{{ url_for('submit') }}",
       {
         raw_paste: result.val(),
+        qty: $('#fit_qty').val(),
         hide_buttons: $("#hide-buttons").is(':checked'),
         paste_autosubmit: $("#paste-autosubmit").is(':checked'),
         save: $("#paste-save").is(':checked'),
@@ -41,7 +42,6 @@ $(function() {
         // Populate results
         $('#result_container').html(data);
         $('#working_id').val($('#return_id').text());
-	    $("#fits").accordion({header: "> div > h3", collapsible: true});
       }).error(function() {
         // Enable form components
         result.removeAttr("disabled").removeClass("disabled");
@@ -156,7 +156,8 @@ Small Processor Overclocking Unit I
                 <button type="submit" id="result_submit" class="btn btn-primary">Submit</button> 
                 <button type="reset" class="btn">Reset</button> 
               </div>
-			  <div class="pull-right input-append">
+			  <div class="pull-right">
+                <input type="text" class='span1' id="fit_qty" name="fit_qty" placeholder="QTY" />
                 <select class="span2" id="trade_region">
                   <option value="">Market Regions</option>
                   {% for id, name in regions.iteritems(): %}

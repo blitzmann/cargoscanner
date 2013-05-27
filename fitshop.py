@@ -263,7 +263,7 @@ def load_result(result_id):
     if data:
         return json.loads(data)
     
-def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
+def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, qty = 1):
     """
         Takes a scan result and returns:
             {'name': {details}, ...}, ['bad line']
@@ -318,9 +318,9 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
         # aiming for the format "[panther, my pimp panther]" (EFT)
         if '[' in fmt_line and ']' in fmt_line and fmt_line.count(",") > 0:
             item, name = fmt_line.lstrip('[').rstrip(']').split(',', 1)
-            success, fitID, fit_append = _add_fit(item.strip(), name) 
+            success, fitID, fit_append = _add_fit(item.strip(), name, qty) 
             
-            if success and _add_type(item.strip(), 1, False):
+            if success and _add_type(item.strip(), qty, False):
                 continue
          
         """if fitID == None: #if we do not have a fit associated with item, skip it
@@ -328,26 +328,29 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None):
             continue
 """
         # aiming for the format "Cargo Scanner II" (Basic Listing)
-        if _add_type(fmt_line, 1, fit_append):
+        if _add_type(fmt_line, qty, fit_append):
             continue
             
         # aiming for the format (EFT)
         # "800mm Repeating Artillery II, Republic Fleet EMP L"
         if ',' in fmt_line:
             item, item2 = fmt_line.rsplit(',', 1)
-            _add_type(item2.strip(), 1, fit_append)
-            if _add_type(item.strip(), 1, fit_append):
+            _add_type(item2.strip(), qty, fit_append)
+            if _add_type(item.strip(), qty, fit_append):
                 continue
 
         # aiming for the format "Hornet x5" (EFT)
         try:
             if 'x' in fmt_line:
-                item, count = fmt_line.rsplit('x', 1)       # remove , and . from count (decimal seperators)
+                item, count = fmt_line.rsplit('x', qty)       # remove , and . from count (decimal seperators)
                 if _add_type(item.strip(), int(count.strip().replace(',', '').replace('.', '')), fit_append):
                     continue
         except ValueError:
             pass
 
+            
+        #todo: do not add [Empty High Slot] type lines to bad lines list
+        
         # could not find appropriate format
         bad_lines.append(line)
     
@@ -455,11 +458,17 @@ def request_pass():
 def submit():
     "Main function. So direty work of submission and returns results"
     raw_paste = request.form.get('raw_paste', '')
+    
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
     session['auths'] = set(session.get('auths') or [])
     session['region_id'] = request.form.get('trade_region', '10000002')
+    
+    try:
+        qty = int(request.form.get('qty', '0'))
+    except ( ValueError ):
+        qty = 1
 
     if session['region_id'] not in REGIONS.keys():
         session['region_id'] = '10000002'
@@ -491,9 +500,9 @@ def submit():
         for item in results['fits']:
             a = EveFit(item['typeID'])
             prev_fits[str(item['typeID'])+item['name']] = a.from_dict(EveFit, item)
-        eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits)
+        eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits, qty)
     else:
-        eve_types, fits, bad_lines = parse_paste_items(raw_paste)
+        eve_types, fits, bad_lines = parse_paste_items(raw_paste, qty = qty)
     
     # Populate types with pricing data
     populate_market_values(eve_types.values(), region=session['region_id'])

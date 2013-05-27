@@ -14,8 +14,8 @@
                 <span class="pull-right">{% if results.auth_hash %} Authorization Code: <strong>{{ results.auth_hash }}</strong>{% endif %}
             </p>
             <h4>
-                <span class="nowrap">{{ results.totals.sell|format_isk_human }} <small>estimated <strong>sell</strong> value</small></span> &nbsp; 
-                <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small>estimated <strong>buy</strong> value in <strong>{{ results.region_name }}</strong></small></span>
+                <span class="nowrap">{{ results.totals.sell|format_isk_human }} <small><strong>sell order</strong> value</small></span> &nbsp; 
+                <span class="nowrap">{{ results.totals.buy|format_isk_human }} <small><strong>buy order</strong> value in <strong>{{ results.region_name }}</strong></small></span>
             </h4>
           </div>
           {% set bad_line_count = results.bad_line_items|length %}
@@ -31,7 +31,7 @@
 {% endfor %}</textarea>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">Colse</button>
+              <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">Close</button>
             </div>
           </div>
           {% endif %}
@@ -72,7 +72,7 @@
                       <a href="{{market_url}}" target="_blank">
                         <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ item.typeID }}_32.png" alt="{{ item.typeName }}">
                       </a> 
-                      <a href="{{market_url}}" target="_blank">{{ item.typeName }}</a> &nbsp;
+                      <a href="{{market_url}}" target="_blank">{{ item.typeName }}</a>
                       <small class="nowrap">[{% if item.count > 1 %}<b>{{item.count}}</b> * {% endif %}{{ item.volume|format_volume|safe }}]</small>
                       {% if item.fitted_count is defined and item.fitted_count > 0 %}<br /><small class="nowrap">({{ item.fitted_count }}/{{ item.count }} Fitted)</small> {% endif %}
                   </div>
@@ -92,7 +92,7 @@
               <tr>
                 <td><span class="nowrap">Total Sell Value</span><br />
                   <span class="nowrap">Total Buy Value</span><br />
-                  <span class="nowrap">Total Volume</span></td>
+                  <span class="nowrap">Total Packaged Volume</span></td>
                 <td></td>
                 <th style="text-align:right">
                   <span class="nowrap">{{ results.totals.sell|format_isk }}</span><br />
@@ -104,17 +104,17 @@
           </table>
           </div><!-- /#tab-inventory -->
           <div class="tab-pane" id="tab-fits">
-          <div class="accordion" id="accordion">
+
               {% for fit in results.fits %}
               <div class="accordion-group">
-                <div style='line-height: 34px;' class="accordion-heading">
-                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#collapse-{{ fit.typeID }}">
-                    <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }} ({{ results.line_items.get(fit.typeID).typeName }})
-                  </a>
+                <div class="fits-heading media">
+                  <a class="fits-toggle" data-toggle="collapse" data-parent="#tab-fits" href="#collapse-{{ fit.typeID }}">
+                    <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }}</a>
+                    <small class="nowrap">[{{ results.line_items.get(fit.typeID).typeName }}]</small>
                 </div>
-                <div id="collapse-{{ fit.typeID }}" class="accordion-body collapse">
+                <div id="collapse-{{ fit.typeID }}" class="fits-body collapse">
                   <div class="accordion-inner">
-                    <ul>
+                    <ul class="media">
                     {% for mod in fit.modules %}
                     <li style="line-height: 32px; padding-left: 30px;"{% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}>
                       <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ mod }}_32.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }}
