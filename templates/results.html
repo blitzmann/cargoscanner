@@ -78,8 +78,8 @@
                   </div>
                 </td>
                 <td style="text-align:right">
-                  <span class="nowrap">{{ item.sell[0] }}</span><br />
-                  <span class="nowrap">{{ item.buy[0] }}</span>
+                  <span class="nowrap">{{ item.sell[0]|format_isk }}</span><br />
+                  <span class="nowrap">{{ item.buy[0]|format_isk }}</span>
                 </td> 
                 <td style="text-align:right">
                   <span class="nowrap">{{ item.totals.sell|format_isk }}</span><br />
@@ -95,8 +95,8 @@
                   <span class="nowrap">Total Packaged Volume</span></td>
                 <td></td>
                 <th style="text-align:right">
-                  <span class="nowrap">{{ results.totals.sell|format_isk }}</span><br />
-                  <span class="nowrap">{{ results.totals.buy|format_isk }}</span>
+                  <span class="nowrap">{{ results.totals.sell|format_isk }} ISK</span><br />
+                  <span class="nowrap">{{ results.totals.buy|format_isk }} ISK</span>
                   <span class="nowrap">{{ results.totals.volume|format_volume|safe }}</span>
                 </th>
               </tr>
@@ -145,5 +145,5 @@
             result_functions();
             
           </script>
-          {{session.auths}}
+
           {% endblock %}

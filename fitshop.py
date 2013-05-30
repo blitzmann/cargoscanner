@@ -22,6 +22,7 @@ import pprint
 import short_url
 from short_hash import short_hash
 import pickle
+import collections
 
 from flask import Flask, request, render_template, url_for, redirect, session, \
     send_from_directory, abort
@@ -162,10 +163,11 @@ class EveFit():
 
 @app.template_filter('format_isk')
 def format_isk(value):
+    value = float(value)
     try:
-        return "%s ISK" % locale.format("%.2f", value, grouping=True)
+        return "%s" % humanize.intcomma(int(value))
     except:
-        return ""
+        return value
 
 @app.template_filter('convert_id')
 def convert_id(hash):
@@ -261,7 +263,7 @@ def load_result(result_id):
     data = fitshop.get("results:%s" % result_id)
     
     if data:
-        return json.loads(data)
+        return json.loads(data, object_pairs_hook=collections.OrderedDict)
     
 def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, qty = 1):
     """
@@ -270,8 +272,8 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
     """
     lines = [line.strip() for line in raw_paste.splitlines() if line.strip()]
 
-    fits = previous_fits or {} # {'typeID-name': EveFit instance}
-    results = previous_results or {} # list of items
+    fits = previous_fits or collections.OrderedDict() # {'typeID-name': EveFit instance}
+    results = previous_results or collections.OrderedDict() # list of items
     bad_lines = []
     fitID = None #current fit id
     
@@ -492,14 +494,12 @@ def submit():
                 from_igb=is_from_igb(), full_page=request.form.get('load_full'))
         
         new_result = False
-        prev_types = {}
-        prev_fits = {}
-        for id, item in results['line_items'].iteritems():
-            a = EveType(item['typeID'])
-            prev_types[item['typeID']] = a.from_dict(EveType, item)
+        prev_types = collections.OrderedDict()
+        prev_fits = collections.OrderedDict()
+        for  item in results['line_items'].values():
+            prev_types[item['typeID']] = EveType(item['typeID']).from_dict(EveType, item)
         for item in results['fits']:
-            a = EveFit(item['typeID'])
-            prev_fits[str(item['typeID'])+item['name']] = a.from_dict(EveFit, item)
+            prev_fits[str(item['typeID'])+item['name']] = EveFit(item['typeID']).from_dict(EveFit, item)
         eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits, qty)
     else:
         eve_types, fits, bad_lines = parse_paste_items(raw_paste, qty = qty)
@@ -515,8 +515,9 @@ def submit():
 
     #sort buy price
     sorted_eve_types = sorted(eve_types.values(), key=lambda k: -k.representative_value())
+
     sorted_fits = sorted(fits.values())
-    displayable_line_items = {}
+    displayable_line_items = collections.OrderedDict()
     display_fits = []
 
     for eve_type in sorted_eve_types:
