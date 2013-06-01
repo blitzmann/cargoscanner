@@ -12,25 +12,33 @@ from reverence import blue
 
 if __name__ == '__main__':
 
-    EVEPATH = '/Applications/EVE Online.app/Contents/Resources/EVE Online.app/Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE'
-    # EVEPATH = "C:/EVE"
+    # EVEPATH = '/Applications/EVE Online.app/Contents/Resources/EVE Online.app/Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE'
+    EVEPATH = "C:\Program Files (x86)\CCP\EVE"
 
     eve = blue.EVE(EVEPATH)
     cfg = eve.getconfigmgr()
 
     all_types = {}
-    for (typeID, groupID, typeName, marketGroupID, volume) in \
+    for (typeID, groupID, typeName, marketGroupID, volume, capacity) in \
             cfg.invtypes.Select('typeID', 'groupID', 'typeName',
-                'marketGroupID', 'volume'):
+                'marketGroupID', 'volume', 'capacity'):
+
         print("Populating info for: %s" % typeName)
 
         hasMarket = marketGroupID is not None
+        slot = None
+        for row in cfg.dgmtypeeffects[typeID]:
+            if row.effectID in [11, 12, 13]:
+                slot = cfg.dgmeffects.Get(row.effectID).effectName
+
         d = {
                 'typeID': typeID,
                 'groupID': groupID,
                 'typeName': typeName,
                 'volume': volume,
+                'capacity': capacity,
                 'market': hasMarket,
+                'slot': slot
             }
 
         # super, carrier, titan, dread
@@ -54,8 +62,9 @@ if __name__ == '__main__':
                 'groupID': groupID,
                 'typeName': copy_name,
                 'volume': volume,
+                'capacity': capacity,
                 'market': False,
             }
 
-    with open('data/types.json', 'w') as f:
+    with open('types.json', 'w') as f:
         f.write(json.dumps(all_types, indent=2))
