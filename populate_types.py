@@ -23,12 +23,16 @@ if __name__ == '__main__':
             cfg.invtypes.Select('typeID', 'groupID', 'typeName',
                 'marketGroupID', 'volume', 'capacity'):
 
-        print("Populating info for: %s" % typeName)
-
         hasMarket = marketGroupID is not None
+        if not hasMarket:
+            # since the app only deals with market items, do not include things like suns
+            continue
+        
+        print("Populating info for: %s" % typeName)
+        
         slot = None
         for row in cfg.dgmtypeeffects[typeID]:
-            if row.effectID in [11, 12, 13]:
+            if row.effectID in [11, 12, 13, 2663]:
                 slot = cfg.dgmeffects.Get(row.effectID).effectName
 
         d = {
