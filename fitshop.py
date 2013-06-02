@@ -77,6 +77,7 @@ class EveType():
         self.volume = self.props.get('volume', 0)
         self.type_name = self.props.get('typeName', 0)
         self.group_id = self.props.get('groupID')
+        self.slot = self.props.get('slot', 'cargo')
 
     def representative_value(self):
         if not self.pricing_info:
@@ -101,6 +102,7 @@ class EveType():
             'market': self.market,
             'volume': self.volume,
             'typeName': self.type_name,
+            'slot': self.slot,
             'groupID': self.group_id,
             'totals': self.pricing_info.get('totals'),
             'sell': self.pricing_info.get('sell'),
@@ -115,7 +117,8 @@ class EveType():
                 'market': d.get('market'),
                 'typeName': d.get('typeName'),
                 'groupID': d.get('groupID'),
-                'volume': d.get('volume')
+                'volume': d.get('volume'),
+                'slot': d.get('slot')
             },
             {
                 'totals': d.get('totals'),

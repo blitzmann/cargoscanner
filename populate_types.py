@@ -31,9 +31,6 @@ if __name__ == '__main__':
         print("Populating info for: %s" % typeName)
         
         slot = None
-        for row in cfg.dgmtypeeffects[typeID]:
-            if row.effectID in [11, 12, 13, 2663]:
-                slot = cfg.dgmeffects.Get(row.effectID).effectName
 
         d = {
                 'typeID': typeID,
@@ -42,9 +39,12 @@ if __name__ == '__main__':
                 'volume': volume,
                 'capacity': capacity,
                 'market': hasMarket,
-                'slot': slot
             }
 
+        for row in cfg.dgmtypeeffects[typeID]:
+            if row.effectID in [11, 12, 13, 2663, 3772]:
+                d['slot'] = cfg.dgmeffects.Get(row.effectID).effectName
+                
         # super, carrier, titan, dread
         if groupID in [659, 547, 30, 485] and typeID in cfg.invtypematerials:
             components = []
