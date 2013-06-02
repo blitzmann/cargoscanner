@@ -86,6 +86,14 @@ class EveType():
         buy_price = self.pricing_info.get('totals', {}).get('buy', 0)
         return max(sell_price, buy_price)
 
+    def sort_order(self):
+        # order from highest to lowest
+        order = ["hiPower","medPower","loPower","subSystem","rigSlot","cargo"]
+        try:
+            return order.index(self.slot)
+        except:
+            return 0
+    
     def is_market_item(self):
         return self.props.get('market', False) == True
 
@@ -526,6 +534,7 @@ def submit():
     for eve_type in sorted_eve_types:
         displayable_line_items[str(eve_type.type_id)] = eve_type.to_dict()
     for fit in sorted_fits:
+        fit.modules.sort(key=lambda k: eve_types.get(int(k)).sort_order())
         display_fits.append(fit.to_dict())  
 
     results = {
