@@ -36,7 +36,7 @@
           </div>
           {% endif %}
           <ul class="nav nav-tabs" id="result_tabs">
-            <li><a href="#tab-inventory" data-toggle="tab">Inventory</a></li>
+            <li class="active"><a href="#tab-inventory" data-toggle="tab">Inventory</a></li>
             <li><a href="#tab-fits" data-toggle="tab">Fits</a></li>
           </ul>
           <div class="tab-content">
@@ -109,15 +109,15 @@
               <div class="accordion-group">
                 <div class="fits-heading media">
                   <a class="fits-toggle" data-toggle="collapse" data-parent="#tab-fits" href="#collapse-{{ fit.typeID }}">
-                    <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}"> {{ fit.qty }} x {{ fit.name }}</a>
+                    <img class="pull-left media-object" src="http://image.eveonline.com/Type/{{ fit.typeID }}_32.png" alt="{{ fit.typeName }}">{{ fit.name }}</a> x {{ fit.qty }}
                     <small class="nowrap">[ {{ results.line_items.get(fit.typeID).typeName }} ]</small>
                 </div>
                 <div id="collapse-{{ fit.typeID }}" class="fits-body collapse">
                   <div class="accordion-inner">
                     <ul class="media">
                     {% for mod in fit.modules %}
-                    <li style="line-height: 24px; vertical-align: middle; "{% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}>
-                      <img style=" margin-top: 4px;" class="pull-left media-object" src="/static/{{ results.line_items.get(mod).slot }}.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }}
+                    <li{% if from_igb %} onclick="CCPEVE.showMarketDetails({{ mod }})"{% endif %}>
+                      <img class="pull-left media-object" src="/static/{{ results.line_items.get(mod).slot }}.png" alt="{{ fit.typeName }}">{{ results.line_items.get(mod).typeName }}
                     </li>
                     {% endfor %}
                   </ul>
