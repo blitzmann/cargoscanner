@@ -77,6 +77,7 @@ class EveType():
         self.volume = self.props.get('volume', 0)
         self.type_name = self.props.get('typeName', 0)
         self.group_id = self.props.get('groupID')
+        self.capacity = self.props.get('capacity', 0.0)
         self.slot = self.props.get('slot', 'cargo')
 
     def representative_value(self):
@@ -110,6 +111,7 @@ class EveType():
             'market': self.market,
             'volume': self.volume,
             'typeName': self.type_name,
+            'capacity': self.capacity,
             'slot': self.slot,
             'groupID': self.group_id,
             'totals': self.pricing_info.get('totals'),
@@ -126,6 +128,7 @@ class EveType():
                 'typeName': d.get('typeName'),
                 'groupID': d.get('groupID'),
                 'volume': d.get('volume'),
+                'capacity': d.get('capacity'),
                 'slot': d.get('slot')
             },
             {
@@ -303,7 +306,7 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         results[type_id].incr_count(count, fitted=fitted)
         if append2Fit: #we turn this off if the item in question is the ship itself
             fits[fitID].add_item(type_id)
-        return True
+        return type_id
         
     def _add_fit(typeName, fitName, qty=1):
         if typeName == '':
@@ -347,10 +350,17 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         # aiming for the format (EFT)
         # "800mm Repeating Artillery II, Republic Fleet EMP L"
         if ',' in fmt_line:
-            item, item2 = fmt_line.rsplit(',', 1)
-            _add_type(item2.strip(), qty, fit_append)
-            if _add_type(item.strip(), qty, fit_append):
-                continue
+            try:
+                item, item2 = fmt_line.rsplit(',', 1)
+                module = _add_type(item.strip(), qty, fit_append)
+                charge = _add_type(item2.strip(), 0, fit_append)
+
+                if module and charge:
+                    charge_qty = results.get(module).capacity / results.get(charge).volume
+                    results.get(charge).incr_count(int(charge_qty))
+                    continue;
+            except:
+                pass
 
         # aiming for the format "Hornet x5" (EFT)
         try:
