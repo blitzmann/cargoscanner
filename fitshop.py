@@ -571,6 +571,18 @@ def submit():
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
+@app.route('/copy', methods=['POST'])
+def copy():
+    session['auths'] = set(session.get('auths') or [])
+    id = short_url.get_id(request.form.get('result_id'))
+    results = load_result(id)
+
+    result_id = save_result(results, public=True, result_id=False)
+    results['result_id'] = short_url.get_code(result_id)
+    session['auths'].add(results['result_id'])
+
+    return render_template('results.html', results=results,
+        from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
 @app.route('/shop/<string:result_id>', methods=['GET'])
 def display_result(result_id):

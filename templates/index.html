@@ -15,7 +15,7 @@
 {{ super() }}
 <script>
 $(function() {
-  $("#auth_form").hide();
+  $("#auth_container").hide();
   $("#result_form").submit(function() {
     var result = $("#raw_textarea");
     var result_submit = $("#result_submit");
@@ -70,7 +70,7 @@ $(function() {
         auth_submit.removeAttr("disabled").removeClass("disabled");
         // Populate results
         if (data == 'True') {
-            $("#auth_form").hide();
+            $("#auth_container").hide();
             $("#result_form").show();
             }
         else {
@@ -79,6 +79,30 @@ $(function() {
         // Enable form components
         auth_input.removeAttr("disabled").removeClass("disabled");
         auth_submit.removeAttr("disabled").removeClass("disabled");
+        alert("Server responded with an error.");
+      });
+    return false;
+  });
+  
+  $("#copy_form").submit(function() {
+    var copy_submit = $("#copy_submit");
+    // Disable form components
+    copy_submit.attr("disabled", "disabled").addClass("disabled");
+
+    $.post("{{ url_for('copy') }}",
+      {
+        result_id: $('#working_id').val(),
+      }, 
+      function(data) {
+        $("#auth_container").hide();
+        $("#result_form").show();
+       
+        // Populate results
+        $('#result_container').html(data);
+        $('#working_id').val($('#return_id').text());
+      }).error(function() {
+        // Enable form components
+        copy_submit.removeAttr("disabled").removeClass("disabled");
         alert("Server responded with an error.");
       });
     return false;
@@ -167,19 +191,21 @@ Small Processor Overclocking Unit I
               </div>
             </div>
           </form>
-
-        <form action="{{ url_for('auth') }}" method="post" style="margin-bottom:10px;" class="well well-small centered" id="auth_form">
-          <h3>Authorization</h3>
-          <p>Please enter the authorization code below to be able to modify result</p>
-          
-          <input name="auth_input" id="auth_input" class="span2 search-query" value="" maxlength="8" />
-          
-          <div class="controls form-inline clearfix">
-              <button type="submit" id="auth_submit" class="btn btn-primary">Submit</button> 
+          <div class="well well-small centered" id="auth_container">
+            <form action="{{ url_for('auth') }}" method="post" style="margin-bottom:10px;" id="auth_form">
+              <h3>Authorization</h3>
+              <p>Please enter the authorization code below to be able to modify result</p>
+              <input name="auth_input" id="auth_input" class="span2 search-query" value="" maxlength="8" />
+              
+              <div class="controls form-inline clearfix">
+                  <button type="submit" id="auth_submit" class="btn btn-primary">Submit</button> 
+              </div>
+            </form>
+            <hr />
+            <form action="{{ url_for('copy') }}" method="post" style="margin-bottom:10px;" id="copy_form">
+              <button type="submit" id="copy_submit" class="btn btn-primary" name="copy_submit">Or, Copy Result to New Record</button> 
+            </form>
           </div>
-          <hr />
-              <button type="submit" id="new_submit" class="btn btn-primary">Or, Copy Result to New Record</button> 
-        </form>
         </div>
         <div class="span7" id="result_container">
           {% block results %}          
