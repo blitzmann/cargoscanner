@@ -103,9 +103,11 @@
             </tfoot>
           </table>
           </div><!-- /#tab-inventory -->
+          
+          
           <div class="tab-pane" id="tab-fits">
 
-              {% for fit in results.fits %}
+              {% for id, fit in results.fits.iteritems() %}
               <div class="accordion-group">
                 <div class="fits-heading media">
                   <a class="fits-toggle" data-toggle="collapse" data-parent="#tab-fits" href="#collapse-{{ fit.typeID }}">
@@ -113,7 +115,7 @@
                    
                     <small class="nowrap">[ {{ results.line_items.get(fit.typeID).typeName }} ]</small>
                     
-                     <span class="qty_container"><input maxlength="4" placeholder="0" type="text" name="fitID[fitIDgoeshere]" value="{{ fit.qty }}"/></span>
+                     <span class="qty_container"><input class="blur" maxlength="4" placeholder="0" type="text" name="{{ fit.id }}" value="{{ fit.qty }}"/></span>
                 </div>
                 <div id="collapse-{{ fit.typeID }}" class="fits-body collapse">
                   <div class="accordion-inner">
@@ -137,6 +139,28 @@
               window.history.replaceState('Object', 'Title', '{{ url_for('display_result', result_id=results.result_id) }}');
             {% endif %}
             function result_functions(){
+              $(function() {
+                $(".blur").blur(function() { 
+                  var fit_id = $(this).attr('name');
+                  var qty = $(this).val();
+
+                
+                  $.post("{{ url_for('change_quantity') }}",
+                    {
+                      qty: qty,
+                      fit_id: fit_id,
+                      result_id: $('#working_id').val(),
+                    }, 
+                    function(data) {
+                      // Populate results
+                      $('#result_container').html(data);
+                      $('#result_tabs a[href="#tab-fits"]').tab('show');
+                    }).error(function() {
+                      alert("Server responded with an error.");
+                    });
+                    return false;
+                });
+              });
               {% if results.result_id not in session.auths %}
                 $(function() {  
                   $("#result_form").hide();

@@ -142,7 +142,7 @@ class EveType():
 # includes fit name, quantity?
 class EveFit():
     def __init__(self, type_id, name="Unknown Name", qty=0, modules=None):
-        self.id = 0
+        self.id = str(type_id)+name
         self.type_id = type_id # type if of fit (which ship)
         self.qty = qty # qty of ships we want
         self.name = name # name of fit
@@ -164,6 +164,7 @@ class EveFit():
 
     def to_dict(self):
         return {
+            'id': str(self.id),
             'typeID': str(self.type_id),
             'qty': self.qty,
             'name': self.name,
@@ -519,7 +520,7 @@ def submit():
         prev_fits = collections.OrderedDict()
         for  item in results['line_items'].values():
             prev_types[item['typeID']] = EveType(item['typeID']).from_dict(EveType, item)
-        for item in results['fits']:
+        for item in results['fits'].values():
             prev_fits[str(item['typeID'])+item['name']] = EveFit(item['typeID']).from_dict(EveFit, item)
         eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits, qty)
     else:
@@ -537,15 +538,15 @@ def submit():
     #sort buy price
     sorted_eve_types = sorted(eve_types.values(), key=lambda k: -k.representative_value())
 
-    sorted_fits = sorted(fits.values())
+    sorted_fits            = sorted(fits.values())
     displayable_line_items = collections.OrderedDict()
-    display_fits = []
+    display_fits           = collections.OrderedDict()
 
     for eve_type in sorted_eve_types:
         displayable_line_items[str(eve_type.type_id)] = eve_type.to_dict()
     for fit in sorted_fits:
         fit.modules.sort(key=lambda k: eve_types.get(int(k)).sort_order())
-        display_fits.append(fit.to_dict())  
+        display_fits[str(fit.id)] = fit.to_dict()
 
     results = {
         'from_igb': is_from_igb(),
@@ -585,6 +586,82 @@ def copy():
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
+@app.route('/chg-qty', methods=['POST'])
+def change_quantity(): 
+    "Should this sent the whole result windo again, or simply update the inventory and total prices?"
+    app.logger.debug("Qty Change")
+    session['auths'] = set(session.get('auths') or [])
+    id = short_url.get_id(request.form.get('result_id'))
+    result_id = id
+    fit_id = request.form.get('fit_id')
+    new_qty = request.form.get('qty')
+    results = load_result(id)
+    
+    eve_types = collections.OrderedDict()
+    fits = collections.OrderedDict()
+    for item in results['line_items'].values():
+        eve_types[item['typeID']] = EveType(item['typeID']).from_dict(EveType, item)
+    for item in results['fits'].values():
+        fits[str(item['typeID'])+item['name']] = EveFit(item['typeID']).from_dict(EveFit, item)
+    
+    
+    old_qty = fits[fit_id].qty
+    fits[fit_id].qty = new_qty
+    eve_types[int(fits[fit_id].type_id)].count = int(new_qty)
+    #app.logger.debug(fits)
+    
+    for item in fits[fit_id].modules:
+        item=int(item)
+        eve_types[item].count -= int(old_qty)
+        eve_types[item].count += int(new_qty)
+
+    # Populate types with pricing data
+    populate_market_values(eve_types.values(), region=session['region_id'])
+
+    # calculate the totals
+    totals = {'sell': 0, 'buy': 0, 'volume': 0}
+    for t in eve_types.values():
+        for total_key in ['sell', 'buy', 'volume']:
+            totals[total_key] += t.pricing_info['totals'][total_key]
+
+    #sort buy price
+    sorted_eve_types = sorted(eve_types.values(), key=lambda k: -k.representative_value())
+
+    sorted_fits            = sorted(fits.values())
+    displayable_line_items = collections.OrderedDict()
+    display_fits           = collections.OrderedDict()
+
+    for eve_type in sorted_eve_types:
+        displayable_line_items[str(eve_type.type_id)] = eve_type.to_dict()
+    for fit in sorted_fits:
+        fit.modules.sort(key=lambda k: eve_types.get(int(k)).sort_order())
+        display_fits[str(fit.id)] = fit.to_dict()
+
+    results = {
+        'from_igb': is_from_igb(),
+        'totals': totals,
+        'bad_line_items': results['bad_line_items'],
+        'line_items': displayable_line_items, # dict of inventory
+        'fits': display_fits, #dict of fits
+        'region_name':  REGIONS[session['region_id']],
+        'modified': time.time(),
+        'auth_hash': results['auth_hash']
+    }
+    
+    if len(sorted_eve_types) > 0:
+        if session['save'] == 'true':
+            result_id = save_result(results, public=True, result_id=result_id)
+            results['result_id'] = short_url.get_code(result_id)
+            session['auths'].add(results['result_id'])
+        else:
+            result_id = save_result(results, public=False, result_id=result_id)
+    
+
+    results.pop('auth_hash', None)
+    return render_template('results.html', results=results,
+        from_igb=is_from_igb(), full_page=request.form.get('load_full'))
+ 
+        
 @app.route('/shop/<string:result_id>', methods=['GET'])
 def display_result(result_id):
     # Init's auth dict
