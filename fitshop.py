@@ -576,7 +576,8 @@ def copy():
     session['auths'] = set(session.get('auths') or [])
     id = short_url.get_id(request.form.get('result_id'))
     results = load_result(id)
-
+    results['modified'] = time.time()
+    
     result_id = save_result(results, public=True, result_id=False)
     results['result_id'] = short_url.get_code(result_id)
     session['auths'].add(results['result_id'])
