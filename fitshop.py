@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
     An Eve Online Shopping List for Fits
-    
+
     every item has a type class, giving info to the item (price, volume, etc)
     every fit has a fit class, giving info of the fit (name, items it has and count (or duplicate), quantity)
-    
+
     every time fit quantiry is updated, it modifies the EveType for that item to show new quantity (perhaps allow custom qty for individuel items as well)
 """
 
@@ -29,12 +29,12 @@ from flask import Flask, request, render_template, url_for, redirect, session, \
 import flask_sijax
 
 from flask.ext.cache import Cache
-from flaskext.babel import Babel, format_decimal, format_timedelta
+from flask.ext.babel import Babel, format_decimal, format_timedelta
 
 
 # configuration
 DEBUG = True
-TYPES = json.loads(open('/home/http/public/fitshop/data/types.json').read())
+TYPES = json.loads(open('data/types.json').read())
 USER_AGENT = 'FitShop/1.0'
 CACHE_TYPE = 'redis'
 CACHE_KEY_PREFIX = 'fitshop'
@@ -47,7 +47,7 @@ SECRET_KEY = 'SET ME TO SOMETHING SECRET IN THE APP CONFIG!'
 REDIS_EMDR_DB = 0
 REDIS_SHOPPING_DB = 3
 
-REGIONS = json.loads(open('/home/http/public/fitshop/emdr/regions.json').read())
+REGIONS = json.loads(open('emdr/regions.json').read())
 
 emdr = redis.Redis(host='localhost', port=6379, db=REDIS_EMDR_DB)
 fitshop = redis.Redis(host='localhost', port=6379, db=REDIS_SHOPPING_DB)
@@ -63,7 +63,7 @@ babel = Babel(app)
 cache.init_app(app)
 
 # one instance per item
-# includes information on items price, volume, count, 
+# includes information on items price, volume, count,
 class EveType():
     def __init__(self, type_id, count=0, props=None, pricing_info=None):
         self.type_id = type_id
@@ -94,7 +94,7 @@ class EveType():
             return order.index(self.slot)
         except:
             return 0
-    
+
     def is_market_item(self):
         return self.props.get('market', False) == True
 
@@ -146,7 +146,7 @@ class EveFit():
         self.type_id = type_id # type if of fit (which ship)
         self.qty = qty # qty of ships we want
         self.name = name # name of fit
-       
+
         self.modules = modules or [] # list of modules in the format {typeid: qty}
 
     def representative_value(self):
@@ -158,7 +158,7 @@ class EveFit():
 
     def add_item(self, itemID):
         self.modules.append(str(itemID))
-        
+
     def incr_count(self, qty):
         self.qty += qty
 
@@ -174,7 +174,7 @@ class EveFit():
     @classmethod
     def from_dict(self, cls, d):
         return cls(d['typeID'], d['name'], d['qty'], d['modules'])
-        
+
 
 @app.template_filter('format_isk')
 def format_isk(value):
@@ -214,7 +214,7 @@ def format_volume(value):
 @app.template_filter('logtype')
 def debug_type(value):
     return value, type(value)
-    
+
 @app.template_filter('relative_time')
 def relative_time(past):
     try:
@@ -242,14 +242,14 @@ def emdr_type_key(type_id, region_id):
 def get_cached_values(eve_types, region_id):
     "Get cached pricing data of eve_types from EMDR"
     "returns: {type_id: {sell: [...], buy: [...]}}"
-    
+
     found = {}
     for eve_type in eve_types:
         key = emdr_type_key(eve_type.type_id, region_id)
         prices = json.loads(emdr.get(key))
         if prices:
             found[eve_type.type_id] = prices['orders']
-    
+
     return found
 
 def save_result(result, public=True, result_id=False):
@@ -276,10 +276,9 @@ def load_result(result_id):
         return
 
     data = fitshop.get("results:%s" % result_id)
-    
     if data:
         return json.loads(data, object_pairs_hook=collections.OrderedDict)
-    
+
 def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, qty = 1):
     """
         Takes a scan result and returns:
@@ -291,7 +290,7 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
     results = previous_results or collections.OrderedDict() # list of items
     bad_lines = []
     fitID = None #current fit id
-    
+
     fit_append = False # True if the modules need to be appended to fitting modules list, False is the fit is already in system (skip appending of modules)
     # add type to results list
     def _add_type(name, count, append2Fit=True, fitted=False):
@@ -308,7 +307,7 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         if append2Fit: #we turn this off if the item in question is the ship itself
             fits[fitID].add_item(type_id)
         return type_id
-        
+
     def _add_fit(typeName, fitName, qty=1):
         if typeName == '':
             return False
@@ -335,11 +334,11 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         # aiming for the format "[panther, my pimp panther]" (EFT)
         if '[' in fmt_line and ']' in fmt_line and fmt_line.count(",") > 0:
             item, name = fmt_line.lstrip('[').rstrip(']').split(',', 1)
-            success, fitID, fit_append = _add_fit(item.strip(), name, qty) 
-            
+            success, fitID, fit_append = _add_fit(item.strip(), name, qty)
+
             if success and _add_type(item.strip(), qty, False):
                 continue
-         
+
         """if fitID == None: #if we do not have a fit associated with item, skip it
             app.logger.debug("no fitID found")
             continue
@@ -347,7 +346,7 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         # aiming for the format "Cargo Scanner II" (Basic Listing)
         if _add_type(fmt_line, qty, fit_append):
             continue
-            
+
         # aiming for the format (EFT)
         # "800mm Repeating Artillery II, Republic Fleet EMP L"
         if ',' in fmt_line:
@@ -372,12 +371,12 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         except ValueError:
             pass
 
-            
+
         #todo: do not add [Empty High Slot] type lines to bad lines list
-        
+
         # could not find appropriate format
         bad_lines.append(line)
-    
+
     #app.logger.debug("fit: %s", jsonpickle.encode(fits  ))
     return results, fits, bad_lines
 
@@ -457,9 +456,9 @@ def populate_market_values(eve_types, methods=None, region='10000002'):
         unpopulated_types = new_unpopulated_types
 
     return eve_types
- 
+
 @app.route('/auth-ajax', methods=['POST'])
-def auth(): 
+def auth():
     result_id_code = request.form.get('result_id', 'true')
     result_id = short_url.get_id(request.form.get('result_id', 'true'))
     results = load_result(result_id)
@@ -469,7 +468,7 @@ def auth():
         auth_input = request.form.get('auth_input', '')
         if (result_id_code not in session.get('auths') and auth_input != auth):
             return str(False)
-    session.get('auths').add(result_id_code)
+    session.get('auths').append(result_id_code)
     session.modified = True
 
     return str(True)
@@ -482,13 +481,13 @@ def request_pass():
 def submit():
     "Main function. So direty work of submission and returns results"
     raw_paste = request.form.get('raw_paste', '')
-    
+
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
     session['save'] = request.form.get('save', 'true')
-    session['auths'] = set(session.get('auths') or [])
+    session['auths'] = session.get('auths') or []
     session['region_id'] = request.form.get('trade_region', '10000002')
-    
+
     try:
         qty = int(request.form.get('qty', '0'))
     except ( ValueError ):
@@ -496,7 +495,7 @@ def submit():
 
     if session['region_id'] not in REGIONS.keys():
         session['region_id'] = '10000002'
-    
+
     new_result = True  # flag for new results
     authorized = False # flag for authorization to modify
 
@@ -514,7 +513,7 @@ def submit():
             results['result_id'] = request.form.get('result_id', 'true')
             return render_template('results.html', error='Not authorized', results=results,
                 from_igb=is_from_igb(), full_page=request.form.get('load_full'))
-        
+
         new_result = False
         prev_types = collections.OrderedDict()
         prev_fits = collections.OrderedDict()
@@ -525,7 +524,7 @@ def submit():
         eve_types, fits, bad_lines = parse_paste_items(raw_paste, prev_types, prev_fits, qty)
     else:
         eve_types, fits, bad_lines = parse_paste_items(raw_paste, qty = qty)
-    
+
     # Populate types with pricing data
     populate_market_values(eve_types.values(), region=session['region_id'])
 
@@ -558,58 +557,59 @@ def submit():
         'modified': time.time(),
         'auth_hash': short_hash(6) if new_result else auth
     }
-    
+
     if len(sorted_eve_types) > 0:
         if session['save'] == 'true':
             result_id = save_result(results, public=True, result_id=(result_id if not new_result else False))
             results['result_id'] = short_url.get_code(result_id)
-            session['auths'].add(results['result_id'])
+            session['auths'].append(results['result_id'])
         else:
             result_id = save_result(results, public=False, result_id=(result_id if not new_result else False))
-    
+
     if not new_result:
         results.pop('auth_hash', None)
+
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
 @app.route('/copy', methods=['POST'])
 def copy():
-    session['auths'] = set(session.get('auths') or [])
+    session['auths'] = session.get('auths') or []
     id = short_url.get_id(request.form.get('result_id'))
     results = load_result(id)
     results['modified'] = time.time()
-    
+
     result_id = save_result(results, public=True, result_id=False)
     results['result_id'] = short_url.get_code(result_id)
-    session['auths'].add(results['result_id'])
+    session['auths'].append(results['result_id'])
 
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
 @app.route('/chg-qty', methods=['POST'])
-def change_quantity(): 
+def change_quantity():
     "Should this sent the whole result windo again, or simply update the inventory and total prices?"
     app.logger.debug("Qty Change")
-    session['auths'] = set(session.get('auths') or [])
+    session['auths'] = session.get('auths') or []
     id = short_url.get_id(request.form.get('result_id'))
     result_id = id
     fit_id = request.form.get('fit_id')
     new_qty = request.form.get('qty')
     results = load_result(id)
-    
+
     eve_types = collections.OrderedDict()
     fits = collections.OrderedDict()
     for item in results['line_items'].values():
         eve_types[item['typeID']] = EveType(item['typeID']).from_dict(EveType, item)
     for item in results['fits'].values():
         fits[str(item['typeID'])+item['name']] = EveFit(item['typeID']).from_dict(EveFit, item)
-    
-    
+
+
     old_qty = fits[fit_id].qty
     fits[fit_id].qty = new_qty
     eve_types[int(fits[fit_id].type_id)].count = int(new_qty)
     #app.logger.debug(fits)
-    
+
     for item in fits[fit_id].modules:
         item=int(item)
         eve_types[item].count -= int(old_qty)
@@ -647,25 +647,25 @@ def change_quantity():
         'modified': time.time(),
         'auth_hash': results['auth_hash']
     }
-    
+
     if len(sorted_eve_types) > 0:
         if session['save'] == 'true':
             result_id = save_result(results, public=True, result_id=result_id)
             results['result_id'] = short_url.get_code(result_id)
-            session['auths'].add(results['result_id'])
+            session['auths'].append(results['result_id'])
         else:
             result_id = save_result(results, public=False, result_id=result_id)
-    
+
 
     results.pop('auth_hash', None)
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
- 
-        
+
+
 @app.route('/shop/<string:result_id>', methods=['GET'])
 def display_result(result_id):
     # Init's auth dict
-    session['auths'] = set(session.get('auths') or [])
+    session['auths'] = session.get('auths') or []
     id = short_url.get_id(result_id)
     results = load_result(id)
     error = None
@@ -724,4 +724,4 @@ def static_from_root():
     return send_from_directory(app.static_folder, request.path[1:])
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', debug=True)
