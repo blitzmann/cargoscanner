@@ -1,16 +1,5 @@
 {% extends "layout.%s.html"|format(config.TEMPLATE) %}
-{% block extra_menu_items %}
-          <li class="dropdown">
-            <a href="#" class="dropdown-toggle" data-toggle="dropdown">Options <b class="caret"></b></a>
-            <ul class="dropdown-menu">
-              <li><label style="margin-left:10px;" class="checkbox"><input id="hide-buttons" type="checkbox"{% if session['hide_buttons'] == 'true' %} checked{% endif %}> Hide buttons</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-autosubmit" type="checkbox"{% if session['paste_autosubmit'] == 'true' %} checked{% endif %}> Autosubmit on paste</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="paste-save" type="checkbox"{% if session['save'] != 'false' %} checked{% endif %}> Save</label></li>
-              <li><label style="margin-left:10px;" class="checkbox"><input id="modify-result" type="checkbox" checked>Modify result</label></li>
 
-            </ul>
-          </li>
-{% endblock %}
 {% block extra_javascript %}
 {{ super() }}
 <script>
@@ -33,7 +22,7 @@ $(function() {
         result_id: $('#working_id').val(),
         trade_region: $('#trade_region').val(),
         auth_code: $('#auth_code').val(),
-      }, 
+      },
       function(data) {
         result.val('');
         // Enable form components
@@ -50,7 +39,7 @@ $(function() {
       });
     return false;
   });
-  
+
   $("#auth_form").submit(function() {
     var auth_input = $("#auth_input");
     var auth_submit = $("#auth_submit");
@@ -62,7 +51,7 @@ $(function() {
       {
         auth_input: auth_input.val(),
         result_id: $('#working_id').val(),
-      }, 
+      },
       function(data) {
         auth_input.val('');
         // Enable form components
@@ -83,7 +72,7 @@ $(function() {
       });
     return false;
   });
-  
+
   $("#copy_form").submit(function() {
     var copy_submit = $("#copy_submit");
     // Disable form components
@@ -92,11 +81,11 @@ $(function() {
     $.post("{{ url_for('copy') }}",
       {
         result_id: $('#working_id').val(),
-      }, 
+      },
       function(data) {
         $("#auth_container").hide();
         $("#result_form").show();
-       
+
         // Populate results
         $('#result_container').html(data);
         $('#working_id').val($('#return_id').text());
@@ -107,7 +96,7 @@ $(function() {
       });
     return false;
   });
-  
+
   $("#raw_textarea").bind('paste', function(e) {
     if($('#paste-autosubmit:checked').length > 0) {
       setTimeout(function() {
@@ -137,26 +126,28 @@ $(function() {
   toggle_buttons();
 
   $("#modify-result").click(function() {
-    if($(this).is(":checked")) {    
+    if($(this).is(":checked")) {
         $('#working_id').val($('#return_id').text()); }
     else {
         $('#working_id').val(''); }
   });
-  
-  if ($("#modify-result").is(":checked")) {    
+
+  if ($("#modify-result").is(":checked")) {
         $('#working_id').val($('#return_id').text()); }
 });
 </script>
 
 {% endblock %}
 {% block body %}
-	
+
     <div class="container">
+
       <div class="row">
-        <div class="span5">
-          <form action="{{ url_for('submit') }}" method="post" style="margin-bottom:10px;" class="well well-small" id="result_form">
+        <div class="col-lg-5">
+          <!--%% Paste Form %%-->
+          <form action="{{ url_for('submit') }}" method="post" class="well well-small form-inline" id="result_form">
             <input type="hidden" id="working_id" name="working_id" value="{% if results and results.result_id %}{{ results.result_id }}{% endif %}" />
-            <textarea class="input-block-level" id="raw_textarea" name="raw_textarea" rows="20" placeholder="Copy fit here">[Imperial Navy Slicer, t1 guns?]
+            <textarea class="form-control" id="raw_textarea" name="raw_textarea" rows="10" placeholder="Copy fit here">[Imperial Navy Slicer, t1 guns?]
 
 Damage Control II
 Inertia Stabilizers II
@@ -175,40 +166,44 @@ Small Capacitor Control Circuit I
 Small Capacitor Control Circuit I
 Small Processor Overclocking Unit I
 </textarea>
-            <div class="controls form-inline clearfix">
-              <div id="buttons" class="pull-left">
-                <button type="submit" id="result_submit" class="btn btn-primary">Submit</button> 
-                <button type="reset" class="btn">Reset</button> 
-              </div>
-			  <div class="pull-right">
-                <input type="text" class='span1' id="fit_qty" name="fit_qty" placeholder="QTY" />
-                <select class="span2" id="trade_region">
+            <div class="controls clearfix">
+              <div class="pull-right">
+              <input type="text" class="input-sm form-control" size='4' id="fit_qty" name="fit_qty" placeholder="QTY" />
+              <select class="input-sm" id="trade_region">
                   <option value="">Market Regions</option>
                   {% for id, name in regions.iteritems(): %}
                   <option value="{{ id }}"{% if session.region_id == id: %} selected="selected"{% endif %}>{{ name }}</option>
                   {% endfor %}
                 </select>
               </div>
-            </div>
-          </form>
-          <div class="well well-small centered" id="auth_container">
-            <form action="{{ url_for('auth') }}" method="post" style="margin-bottom:10px;" id="auth_form">
-              <h3>Authorization</h3>
-              <p>Please enter the authorization code below to be able to modify result</p>
-              <input name="auth_input" id="auth_input" class="span2 search-query" value="" maxlength="8" />
-              
-              <div class="controls form-inline clearfix">
-                  <button type="submit" id="auth_submit" class="btn btn-primary">Submit</button> 
+              <div id="buttons">
+                <button type="submit" id="result_submit" class="btn btn-primary btn-sm">Submit</button>
+                <button type="reset" class="btn btn-sm">Reset</button>
+
               </div>
-            </form>
-            <hr />
-            <form action="{{ url_for('copy') }}" method="post" style="margin-bottom:10px;" id="copy_form">
-              <button type="submit" id="copy_submit" class="btn btn-primary" name="copy_submit">Or, Copy Result to New Record</button> 
+              </div>
+          </form>
+
+          <!--%% Auth Form %%-->
+          <div class="well well-small text-center" id="auth_container">
+          <h3>Authorization</h3>
+            <p>Enter the authorization code below to enable result modification</p>
+            <form action="{{ url_for('auth') }}" method="post" class="form form-horizontal" id="auth_form">
+              <div class="form-group">
+                <div class="col-md-5 col-centered">
+                  <input name="auth_input" id="auth_input" class="form-control input-lg" value="" maxlength="8" />
+                </div>
+              </div>
+              <div class="controls form-inline clearfix">
+                <button type="submit" id="auth_submit" class="btn btn-primary">Submit</button>
+                <button type="submit" id="copy_submit" class="btn" name="copy_submit">Copy Result</button>
+              </div>
             </form>
           </div>
         </div>
-        <div class="span7" id="result_container">
-          {% block results %}          
+
+        <div class="col-lg-7" id="result_container">
+          {% block results %}
             {% if error %}
             <div class="alert alert-error">
                 <strong>ERROR:</strong> {{ error }}

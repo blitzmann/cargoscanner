@@ -38,7 +38,6 @@ TYPES = json.loads(open('data/types.json').read())
 USER_AGENT = 'FitShop/1.0'
 CACHE_TYPE = 'redis'
 CACHE_KEY_PREFIX = 'fitshop'
-#CACHE_MEMCACHED_SERVERS = ['127.0.0.1:11211']
 CACHE_REDIS_HOST = '127.0.0.1'
 CACHE_REDIS_PORT = 6379
 #CACHE_DEFAULT_TIMEOUT = 10 * 60
@@ -459,6 +458,7 @@ def populate_market_values(eve_types, methods=None, region='10000002'):
 
 @app.route('/auth-ajax', methods=['POST'])
 def auth():
+    app.logger.debug(request.form.get('copy_submit', 'true'))
     result_id_code = request.form.get('result_id', 'true')
     result_id = short_url.get_id(request.form.get('result_id', 'true'))
     results = load_result(result_id)
@@ -479,12 +479,12 @@ def request_pass():
 
 @app.route('/shop', methods=['POST'])
 def submit():
-    "Main function. So direty work of submission and returns results"
+    "Main submission function"
     raw_paste = request.form.get('raw_paste', '')
 
     session['paste_autosubmit'] = request.form.get('paste_autosubmit', 'false')
     session['hide_buttons'] = request.form.get('hide_buttons', 'false')
-    session['save'] = request.form.get('save', 'true')
+    session['save'] = True
     session['auths'] = session.get('auths') or []
     session['region_id'] = request.form.get('trade_region', '10000002')
 
@@ -504,11 +504,11 @@ def submit():
 
     '''
         If results exists, this means we are trying to modify existing result.
-        Go through the motions of authenticating user, and return return some variables
+        Go through the motions of authenticating user, and return some variables
     '''
     if results:
         auth = results['auth_hash']
-        if (request.form.get('result_id', 'true') not in session.get('auths')):
+        if (result_id not in session.get('auths')):
             results.pop('auth_hash', None)
             results['result_id'] = request.form.get('result_id', 'true')
             return render_template('results.html', error='Not authorized', results=results,
@@ -559,9 +559,10 @@ def submit():
     }
 
     if len(sorted_eve_types) > 0:
-        if session['save'] == 'true':
+        if session['save'] == True:
             result_id = save_result(results, public=True, result_id=(result_id if not new_result else False))
             results['result_id'] = short_url.get_code(result_id)
+            print results['result_id']
             session['auths'].append(results['result_id'])
         else:
             result_id = save_result(results, public=False, result_id=(result_id if not new_result else False))
@@ -573,7 +574,7 @@ def submit():
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
 @app.route('/copy', methods=['POST'])
-def copy():
+def copy(request):
     session['auths'] = session.get('auths') or []
     id = short_url.get_id(request.form.get('result_id'))
     results = load_result(id)
@@ -588,7 +589,7 @@ def copy():
 
 @app.route('/chg-qty', methods=['POST'])
 def change_quantity():
-    "Should this sent the whole result windo again, or simply update the inventory and total prices?"
+    "Should this sent the whole result window again, or simply update the inventory and total prices?"
     app.logger.debug("Qty Change")
     session['auths'] = session.get('auths') or []
     id = short_url.get_id(request.form.get('result_id'))
