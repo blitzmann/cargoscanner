@@ -16,7 +16,7 @@ chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 def get_id(n):
 	return decode(debase(n))
-   
+
 def get_code(n):
 	return enbase(encode(n))
 # shuffle the bits
@@ -60,8 +60,8 @@ for a in range(10):
     c = get_code(a)
     d = debase(c)
     e = get_id(c)
-    
-	
+
+
 	#while len(c) < 7:
      #   c = ' ' + c
     print '%6d\t%6d\t%s\t%6d\t%6d' % (a, b, c, d, e)

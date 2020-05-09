@@ -134,6 +134,7 @@ $(function() {
 
   if ($("#modify-result").is(":checked")) {
         $('#working_id').val($('#return_id').text()); }
+
 });
 </script>
 
@@ -144,6 +145,7 @@ $(function() {
 
       <div class="row">
         <div class="col-lg-5">
+
           <!--%% Paste Form %%-->
           <form action="{{ url_for('submit') }}" method="post" class="well well-small form-inline" id="result_form">
             <input type="hidden" id="working_id" name="working_id" value="{% if results and results.result_id %}{{ results.result_id }}{% endif %}" />
@@ -183,6 +185,7 @@ Small Processor Overclocking Unit I
               </div>
               </div>
           </form>
+
 
           <!--%% Auth Form %%-->
           <div class="well well-small text-center" id="auth_container">

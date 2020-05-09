@@ -174,6 +174,17 @@ class EveFit():
     def from_dict(self, cls, d):
         return cls(d['typeID'], d['name'], d['qty'], d['modules'])
 
+start = 0
+@app.before_request
+def before_request():
+    global start
+    start = time.time()
+
+@app.teardown_request
+def teardown_request(exception=None):
+    global start
+    diff = time.time() - start
+    #app.logger.debug("Page time: %s"%diff)
 
 @app.template_filter('format_isk')
 def format_isk(value):
@@ -283,6 +294,7 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         Takes a scan result and returns:
             {'name': {details}, ...}, ['bad line']
     """
+    print qty
     lines = [line.strip() for line in raw_paste.splitlines() if line.strip()]
 
     fits = previous_fits or collections.OrderedDict() # {'typeID-name': EveFit instance}
@@ -302,7 +314,8 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         type_id = details['typeID']
         if type_id not in results:
             results[type_id] = EveType(type_id, props=details.copy())
-        results[type_id].incr_count(count, fitted=fitted)
+        #                                     v--- @todo - this doesn't work correctly
+        results[type_id].incr_count(count, fitted=False)
         if append2Fit: #we turn this off if the item in question is the ship itself
             fits[fitID].add_item(type_id)
         return type_id
@@ -318,11 +331,14 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         fitID = str(type_id) + fitName
         # todo: possibly use hash of object to determine fits that are the same?
         if fitID not in fits:
+            app.logger.debug("did not find fit")
             fit_append = True
             fits[fitID] = EveFit(type_id, fitName)
         else:
             # found fit, do not append modules
+            app.logger.debug("found fit")
             fit_append = False
+
         fits[fitID].incr_count(qty)
         return True, fitID, fit_append
 
@@ -334,16 +350,16 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         if '[' in fmt_line and ']' in fmt_line and fmt_line.count(",") > 0:
             item, name = fmt_line.lstrip('[').rstrip(']').split(',', 1)
             success, fitID, fit_append = _add_fit(item.strip(), name, qty)
-
             if success and _add_type(item.strip(), qty, False):
                 continue
 
         """if fitID == None: #if we do not have a fit associated with item, skip it
             app.logger.debug("no fitID found")
             continue
-"""
+        """
         # aiming for the format "Cargo Scanner II" (Basic Listing)
         if _add_type(fmt_line, qty, fit_append):
+            print fmt_line, fit_append
             continue
 
         # aiming for the format (EFT)
@@ -351,6 +367,7 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         if ',' in fmt_line:
             try:
                 item, item2 = fmt_line.rsplit(',', 1)
+
                 module = _add_type(item.strip(), qty, fit_append)
                 charge = _add_type(item2.strip(), 0, fit_append)
 
@@ -364,8 +381,9 @@ def parse_paste_items(raw_paste, previous_results = None, previous_fits = None, 
         # aiming for the format "Hornet x5" (EFT)
         try:
             if 'x' in fmt_line:
+                print qty
                 item, count = fmt_line.rsplit('x', qty)       # remove , and . from count (decimal seperators)
-                if _add_type(item.strip(), int(count.strip().replace(',', '').replace('.', '')), fit_append):
+                if _add_type(item.strip(), int(count.strip().replace(',', '').replace('.', ''))*qty, fit_append):
                     continue
         except ValueError:
             pass
@@ -508,8 +526,9 @@ def submit():
     '''
     if results:
         auth = results['auth_hash']
-        if (result_id not in session.get('auths')):
-            results.pop('auth_hash', None)
+        app.logger.debug("Auths: %s" % session.get('auths'))
+        if (request.form.get('result_id', 'true') not in session.get('auths')):
+            #results.pop('auth_hash', None)
             results['result_id'] = request.form.get('result_id', 'true')
             return render_template('results.html', error='Not authorized', results=results,
                 from_igb=is_from_igb(), full_page=request.form.get('load_full'))
@@ -562,13 +581,13 @@ def submit():
         if session['save'] == True:
             result_id = save_result(results, public=True, result_id=(result_id if not new_result else False))
             results['result_id'] = short_url.get_code(result_id)
-            print results['result_id']
             session['auths'].append(results['result_id'])
         else:
             result_id = save_result(results, public=False, result_id=(result_id if not new_result else False))
 
     if not new_result:
-        results.pop('auth_hash', None)
+        pass
+        #results.pop('auth_hash', None)
 
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
@@ -658,7 +677,7 @@ def change_quantity():
             result_id = save_result(results, public=False, result_id=result_id)
 
 
-    results.pop('auth_hash', None)
+    #results.pop('auth_hash', None)
     return render_template('results.html', results=results,
         from_igb=is_from_igb(), full_page=request.form.get('load_full'))
 
@@ -673,7 +692,9 @@ def display_result(result_id):
     status = 200
     if results:
         results['result_id'] = result_id
-        results.pop('auth_hash', None)
+        # @todo: for security, don't send auth with results unless session already has auth
+        # Currently this is handled by the template
+        #results.pop('auth_hash', None)
 
         return render_template('results.html', regions=REGIONS, results=results,
             error=error, from_igb=is_from_igb(), full_page=True), status
